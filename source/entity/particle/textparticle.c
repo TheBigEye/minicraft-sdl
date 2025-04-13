@@ -5,51 +5,62 @@
 
 #include <string.h>
 
-void textparticle_create(TextParticle* entity, char* message, int x, int y, int col){
-	entity_create(&entity->entity);
-	entity->entity.type = TEXTPARTICLE;
-	entity->time = 0;
-	entity->freee = 1;
-	entity->msg = message;
-	entity->msgLen = strlen(message);
-	entity->entity.x = x;
-	entity->entity.y = y;
-	entity->col = col;
-	entity->xx = x;
-	entity->yy = y;
-	entity->zz = 2;
+void textparticle_create(TextParticle* particle, char* message, int x, int y, int col) {
+	entity_create(&particle->entity);
 
-	entity->xa = random_next_gaussian(&entity->entity.random) * 0.3;
-	entity->ya = random_next_gaussian(&entity->entity.random) * 0.2;
-	entity->za = random_next_float(&entity->entity.random) * 0.7 + 2;
+	particle->entity.type = TEXTPARTICLE;
+	particle->time = 0;
+	particle->freee = 1;
+	particle->msg = message;
+	particle->msgLen = strlen(message);
+
+	particle->entity.x = x;
+	particle->entity.y = y;
+	particle->col = col;
+	particle->xx = x;
+	particle->yy = y;
+	particle->zz = 2;
+
+	particle->xa = random_next_gaussian(&particle->entity.random) * 0.3;
+	particle->ya = random_next_gaussian(&particle->entity.random) * 0.2;
+	particle->za = random_next_float(&particle->entity.random) * 0.7 + 2;
 }
 
-void textparticle_tick(TextParticle* entity){
-	++entity->time;
-	if(entity->time > 60) entity_remove((Entity *) entity);
 
-	entity->xx += entity->xa;
-	entity->yy += entity->ya;
-	entity->zz += entity->za;
-	if(entity->zz < 0){
-		entity->zz = 0;
-		entity->za *= -0.5;
-		entity->xa *= 0.6;
-		entity->ya *= 0.6;
+void textparticle_tick(TextParticle* particle) {
+	++particle->time;
+
+	if (particle->time > 60) {
+        entity_remove(&particle->entity);
+    }
+
+	particle->xx += particle->xa;
+	particle->yy += particle->ya;
+	particle->zz += particle->za;
+
+	if (particle->zz < 0) {
+		particle->zz = 0;
+		particle->za *= -0.5;
+		particle->xa *= 0.6;
+		particle->ya *= 0.6;
 	}
-	entity->za -= 0.15;
-	entity->entity.x = (int) entity->xx;
-	entity->entity.y = (int) entity->yy;
-}
-void textparticle_render(TextParticle* entity, Screen* screen){
-	int x = entity->entity.x;
-	int y = entity->entity.y;
-	font_draw(entity->msg, entity->msgLen, screen, x - entity->msgLen*4 + 1, y - (int)entity->zz + 1, getColor4(-1, 0, 0, 0));
-	font_draw(entity->msg, entity->msgLen, screen, x - entity->msgLen*4, y - (int)entity->zz, entity->col);
+
+	particle->za -= 0.15;
+	particle->entity.x = (int) particle->xx;
+	particle->entity.y = (int) particle->yy;
 }
 
-void textparticle_free(TextParticle* entity){
-	if(entity->freee){
-		free(entity->msg);
+
+void textparticle_render(TextParticle* particle, Screen* screen) {
+	int x = particle->entity.x;
+	int y = particle->entity.y;
+	font_draw(particle->msg, particle->msgLen, screen, x - particle->msgLen*4 + 1, y - ((int) particle->zz) + 1, getColor4(-1, 0, 0, 0));
+	font_draw(particle->msg, particle->msgLen, screen, x - particle->msgLen*4, y - ((int) particle->zz), particle->col);
+}
+
+
+void textparticle_free(TextParticle* particle) {
+	if (particle->freee) {
+		free(particle->msg);
 	}
 }

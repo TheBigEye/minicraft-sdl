@@ -45,7 +45,9 @@ Level* game_level = NULL;
 Player* game_player = NULL;
 
 const int MAX_FPS = -1;
-const char *CLICK_TO_FOCUS = "Click to focus!";
+
+// NOTE: this must be always an array, or C will treat this like read-only
+char CLICK_TO_FOCUS[] = "Click to focus!";
 
 
 void game_set_menu(enum menu_id menu) {
@@ -83,7 +85,9 @@ void game_reset() {
 		level_free(game_levels + i);
 	}
 
-	if (!isingame) return;
+	if (!isingame) {
+        return;
+    }
 
 	memset(game_levels, 0, sizeof(game_levels));
 
@@ -153,8 +157,6 @@ void set_pixel(SDL_Surface* surface, int x, int y, int color){
 	*(int*)(surface->pixels + y * surface->pitch + x * surface->format->BytesPerPixel) = color;
 }
 
-
-char teststr[] = "test uwu";
 
 void game_tick(){
 	++tickCount;
@@ -358,7 +360,8 @@ void game_render() {
 	}
 
 	game_renderGui();
-	if(!game_hasfocus){
+
+	if (!game_hasfocus){
 		game_renderFocusNagger();
 	}
 }
@@ -482,8 +485,17 @@ int main(int argc, char** argv) {
     #endif
 
 
-	prevBuf = malloc(game_screen.h * game_screen.w);
-	for (int i = 0; i < game_screen.h * game_screen.w; ++i) prevBuf[i] = 0;
+	prevBuf = malloc(sizeof(int) * game_screen.h * game_screen.w);
+    if (!prevBuf) {
+        printf("Failed to allocate prevBuf memory!\n");
+        ret = 1;
+        goto QUIT;
+    }
+
+	for (int i = 0; i < game_screen.h * game_screen.w; ++i) {
+        prevBuf[i] = 0x000000;
+    }
+
 	game_hasfocus = 1;
 
 	while (running) {
@@ -518,6 +530,7 @@ int main(int argc, char** argv) {
 					break;
 			}
 		}
+
 		needsFlip = 0;
 		flipXMin = winWidth;
 		flipXMax = 0;

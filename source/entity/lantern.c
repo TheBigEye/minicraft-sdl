@@ -4,7 +4,7 @@
 #include <string.h>
 
 void lantern_create(Lantern* lantern){
-	char* name = malloc(strlen("Lantern")+1); //XXX ew
+	char* name = malloc(strlen("Lantern") + 1); //XXX ew
 	strcpy(name, "Lantern");
 
 	furniture_create((Furniture *) lantern, name);

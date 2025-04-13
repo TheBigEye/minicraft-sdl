@@ -1,63 +1,82 @@
+# Compiler
 CC = gcc
 LD = ld
+
+# Directories
+SOURCE_DIR = source
 
 # -DLEVELGENTEST
 # -DTEST_SHOWPORTALPOS
 # -DTEST_INVENTORY
 # -DGODMODE
 
-CFLAGS = -static-libgcc -m32 -Wall -Wextra -Wl,-Bstatic -Wl,--whole-archive -O2
-LDFLAGS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -limm32 -lgdi32 -lwinmm -lole32 -lcomdlg32 -lopengl32 -lcfgmgr32
+# Platform-specific settings
+ifeq ($(OS),Windows_NT)
+    # Windows
+    OUTPUT  = game.exe
+    CFLAGS += -m32 -Wall -Wextra -O2 -static -static-libgcc -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lm -lkernel32 -luser32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -ladvapi32 -lsetupapi -lshell32 -ldinput8
+else
+    # Linux
+    OUTPUT  = game
+    CFLAGS += -m32 -Wall -Wextra -O2 -lSDL2 -lSDL2_ttf -lm
+endif
 
-SOURCE_DIR = source
 
 # C Source files
-SOURCES = $(wildcard                       \
-	$(SOURCE_DIR)/crafting/*.c             \
-	$(SOURCE_DIR)/entity/*.c               \
-	$(SOURCE_DIR)/entity/particle/*.c      \
-	$(SOURCE_DIR)/gfx/*.c                  \
-	$(SOURCE_DIR)/item/*.c                 \
-	$(SOURCE_DIR)/item/resource/*.c        \
-	$(SOURCE_DIR)/level/*.c                \
-	$(SOURCE_DIR)/level/levelgen/*.c       \
-	$(SOURCE_DIR)/level/tile/*.c           \
-	$(SOURCE_DIR)/screen/*.c               \
-	$(SOURCE_DIR)/utils/*.c                \
-	$(SOURCE_DIR)/*.c                      \
+SOURCES = $(wildcard 				  \
+	$(SOURCE_DIR)/crafting/*.c 		  \
+	$(SOURCE_DIR)/entity/*.c 		  \
+	$(SOURCE_DIR)/entity/particle/*.c \
+	$(SOURCE_DIR)/gfx/*.c 			  \
+	$(SOURCE_DIR)/item/*.c 			  \
+	$(SOURCE_DIR)/item/resource/*.c   \
+	$(SOURCE_DIR)/level/*.c 		  \
+	$(SOURCE_DIR)/level/levelgen/*.c  \
+	$(SOURCE_DIR)/level/tile/*.c      \
+	$(SOURCE_DIR)/screen/*.c          \
+	$(SOURCE_DIR)/utils/*.c           \
+	$(SOURCE_DIR)/*.c                 \
 )
 
-# C Headers files
-HEADERS = $(wildcard                       \
-	$(SOURCE_DIR)/crafting/*.h             \
-	$(SOURCE_DIR)/entity/*.h               \
-	$(SOURCE_DIR)/entity/particle/*.h      \
-	$(SOURCE_DIR)/gfx/*.h                  \
-	$(SOURCE_DIR)/item/*.h                 \
-	$(SOURCE_DIR)/item/resource/*.h        \
-	$(SOURCE_DIR)/level/*.h                \
-	$(SOURCE_DIR)/level/levelgen/*.h       \
-	$(SOURCE_DIR)/level/tile/*.h           \
-	$(SOURCE_DIR)/screen/*.h               \
-	$(SOURCE_DIR)/utils/*.h                \
-	$(SOURCE_DIR)/*.h                      \
+# C Header files
+HEADERS = $(wildcard                  \
+	$(SOURCE_DIR)/crafting/*.h        \
+	$(SOURCE_DIR)/entity/*.h          \
+	$(SOURCE_DIR)/entity/particle/*.h \
+	$(SOURCE_DIR)/gfx/*.h             \
+	$(SOURCE_DIR)/item/*.h            \
+	$(SOURCE_DIR)/item/resource/*.h   \
+	$(SOURCE_DIR)/level/*.h           \
+	$(SOURCE_DIR)/level/levelgen/*.h \
+	$(SOURCE_DIR)/level/tile/*.h \
+	$(SOURCE_DIR)/screen/*.h \
+	$(SOURCE_DIR)/utils/*.h \
+	$(SOURCE_DIR)/*.h \
 )
 
-# TODO: add support for Linux (ELF instead of EXE LOL)
-
-OBJECTS = $(SOURCES:.c=.o)                 \
-
-all: game.exe
-
-game.exe: ${OBJECTS}
-	@$(CC) ${OBJECTS} $(LDFLAGS) -o $@
+# Convert all .c files into .o files
+OBJECTS = $(SOURCES:.c=.o)
 
 
-%.o: %.c
+# Default target: build the final executable
+all: $(OUTPUT)
+
+
+# Link all object files to create the executable
+$(OUTPUT): $(OBJECTS)
+	@$(CC) $(OBJECTS) $(CFLAGS) -o $@
+
+
+# Compile each .c file into a .o file
+%.o: %.c $(HEADERS)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-run: game.exe
-	@./game.exe
 
+# Run the game
+run: $(OUTPUT)
+	@./$(OUTPUT)
+
+
+# Clean up build artifacts
 clean:
-	@rm -fv $(OBJECTS) game.exe
+	@rm -fv $(OBJECTS) $(OUTPUT)

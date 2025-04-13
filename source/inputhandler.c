@@ -8,22 +8,27 @@ Key right;
 Key attack;
 Key menu;
 
+
 void key_toggle(Key* key, char pressed){
-    if(pressed != key->down){
+    if (pressed != key->down) {
         key->down = pressed;
     }
-    if(pressed)
+
+    if (pressed) {
         ++key->presses;
+    }
 }
 
+
 void key_tick(Key* key){
-    if(key->absorbs < key->presses){
+    if (key->absorbs < key->presses) {
         ++key->absorbs;
         key->clicked = 1;
     } else {
         key->clicked = 0;
     }
 }
+
 
 void input_tick(){
     key_tick(&up);
@@ -34,8 +39,9 @@ void input_tick(){
     key_tick(&menu);
 }
 
-void input_toggle(SDL_Keycode key, char pressed){
-    switch(key){
+
+void input_toggle(SDL_Keycode key, char pressed) {
+    switch (key) {
         case SDLK_w:
         case SDLK_UP:
             key_toggle(&up, pressed);

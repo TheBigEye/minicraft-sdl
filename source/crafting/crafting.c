@@ -2,13 +2,13 @@
 #include "recipe.h"
 #include "../utils/arraylist.h"
 
-
 ArrayList anvilRecipes = {0};
 ArrayList ovenRecipes = {0};
 ArrayList furnaceRecipes = {0};
 ArrayList workbenchRecipes = {0};
 
-void crafting_init(){
+
+void crafting_init() {
 	create_arraylist(&anvilRecipes);
 	create_arraylist(&ovenRecipes);
 	create_arraylist(&furnaceRecipes);
@@ -219,26 +219,28 @@ void crafting_init(){
 	recipe_addCost(recipe, &wheat, 4);
 	arraylist_push(&ovenRecipes, recipe);
 }
-void crafting_free(){
-	for(int i = 0; i < anvilRecipes.size; ++i){
+
+
+void crafting_free() {
+	for (int i = 0; i < anvilRecipes.size; ++i) {
 		recipe_free(anvilRecipes.elements[i]);
 		free(anvilRecipes.elements[i]);
 	}
 	arraylist_remove(&anvilRecipes);
 
-	for(int i = 0; i < ovenRecipes.size; ++i){
+	for (int i = 0; i < ovenRecipes.size; ++i) {
 		recipe_free(ovenRecipes.elements[i]);
 		free(ovenRecipes.elements[i]);
 	}
 	arraylist_remove(&ovenRecipes);
 
-	for(int i = 0; i < furnaceRecipes.size; ++i){
+	for (int i = 0; i < furnaceRecipes.size; ++i) {
 		recipe_free(furnaceRecipes.elements[i]);
 		free(furnaceRecipes.elements[i]);
 	}
 	arraylist_remove(&furnaceRecipes);
 
-	for(int i = 0; i < workbenchRecipes.size; ++i){
+	for (int i = 0; i < workbenchRecipes.size; ++i) {
 		recipe_free(workbenchRecipes.elements[i]);
 		free(workbenchRecipes.elements[i]);
 	}
