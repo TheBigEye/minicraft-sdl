@@ -75,7 +75,7 @@ void level_init(Level* lvl, int w, int h, int level, Level* parent) {
 		airwizard_create(wizard);
 		wizard->mob.entity.x = w * 8;
 		wizard->mob.entity.y = h * 8;
-		level_addEntity(lvl, (Entity *) wizard);
+		level_addEntity(lvl, &wizard->mob.entity);
 	}
 }
 
@@ -143,9 +143,9 @@ void level_trySpawn(Level* level, int count){
 		if (!mob) continue; // ... I should check this later ...
 
 		if (mob_findStartPos(mob, level)) {
-			level_addEntity(level, (Entity *) mob);
+			level_addEntity(level, &mob->entity);
 		} else {
-			call_entity_free((Entity *) mob);
+			call_entity_free(&mob->entity);
 			free(mob);
 		}
 	}

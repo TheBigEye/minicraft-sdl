@@ -141,22 +141,29 @@ void tile_render(TileID id, Screen* screen, Level* level, int x, int y){
 }
 
 char tile_mayPass(TileID id, Level* level, int x, int y, Entity* e){
-#ifdef GODMODE
-	if(e->type == PLAYER) return 1;
-#endif
-	switch(id){
+
+    // -DGODMODE
+    #ifdef GODMODE
+	    if (e->type == PLAYER) {
+            return 1;
+        }
+    #endif
+
+	switch (id) {
 		case CACTUS:
 		case HARD_ROCK:
 		case GEM_ORE:
 		case GOLD_ORE:
 		case IRON_ORE:
 		case ROCK:
-		//XXX unused case STONE:
+		// XXX unused case STONE:
 		case TREE:
 			return 0;
 		case CLOUD_CACTUS:
 		case INFINITE_FALL:
-			if(e->type == AIRWIZARD) return 1;
+			if (e->type == AIRWIZARD) {
+                return 1;
+            }
 			return 0;
 		case HOLE:
 		case LAVA:
@@ -168,6 +175,7 @@ char tile_mayPass(TileID id, Level* level, int x, int y, Entity* e){
 	}
 }
 
+
 int tile_getLightRadius(TileID id, Level* level, int x, int y){
 	switch(id){
 		case LAVA:
@@ -176,6 +184,7 @@ int tile_getLightRadius(TileID id, Level* level, int x, int y){
 			return 0;
 	}
 }
+
 
 void tile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
 	switch(id){

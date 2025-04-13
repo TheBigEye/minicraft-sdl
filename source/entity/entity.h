@@ -1,10 +1,12 @@
 #ifndef ENTITY_H
 #define ENTITY_H
-#include "../utils/javarandom.h"
-#include "../utils/utils.h"
+
 #include <stdint.h>
 #include "entityid.h"
+
 #include "../gfx/screen.h"
+#include "../utils/javarandom.h"
+#include "../utils/utils.h"
 
 struct _Mob;
 struct _Player;
@@ -19,6 +21,7 @@ typedef struct _Entity{
 	struct _Level* level;
 	uint8_t removed;
 } Entity;
+
 
 void entity_create(Entity* entity);
 void entity_tick(Entity* entity);
@@ -37,7 +40,5 @@ uint8_t entity_interact(Entity* entity, struct _Player* player, struct _Item* it
 //TODO interact
 //TODO use
 int entity_getLightRadius(Entity* entity);
-
-
 
 #endif // ENTITY_H

@@ -1,25 +1,29 @@
-#include "entity.h"
-#include "player.h"
-#include "itementity.h"
+#include "../utils/arraylist.h"
+
 #include "particle/smashparticle.h"
 #include "particle/textparticle.h"
-#include "inventory.h"
-#include "furniture.h"
-#include "workbench.h"
-#include "lantern.h"
-#include "slime.h"
-#include "zombie.h"
-#include "oven.h"
-#include "furnace.h"
+
+#include "airwizard.h"
 #include "anvil.h"
 #include "chest.h"
-#include "../utils/arraylist.h"
-#include "airwizard.h"
+#include "entity.h"
+#include "furnace.h"
+#include "furniture.h"
+#include "inventory.h"
+#include "itementity.h"
+#include "lantern.h"
+#include "oven.h"
+#include "player.h"
+#include "slime.h"
 #include "spark.h"
+#include "workbench.h"
+#include "zombie.h"
+
 #include <string.h>
 
-void call_entity_tick(Entity* entity){
-	switch(entity->type){
+
+void call_entity_tick(Entity* entity) {
+	switch (entity->type) {
 		case PLAYER:
 			player_tick((Player*) entity);
 			break;
@@ -58,8 +62,9 @@ void call_entity_tick(Entity* entity){
 	}
 }
 
-uint8_t call_entity_canSwim(Entity* entity){
-	switch(entity->type){
+
+uint8_t call_entity_canSwim(Entity* entity) {
+	switch (entity->type) {
 		case PLAYER:
 			return 1;
 		default:
@@ -67,8 +72,9 @@ uint8_t call_entity_canSwim(Entity* entity){
 	}
 }
 
-uint8_t call_entity_isBlockableBy(Entity* entity, Mob* mob){
-	switch(entity->type){
+
+uint8_t call_entity_isBlockableBy(Entity* entity, Mob* mob) {
+	switch (entity->type) {
 		case ITEMENTITY:
 		case SPARK:
 			return 0;
@@ -78,8 +84,9 @@ uint8_t call_entity_isBlockableBy(Entity* entity, Mob* mob){
 	}
 }
 
-void call_entity_render(Entity* entity, Screen* screen){
-	switch(entity->type){
+
+void call_entity_render(Entity* entity, Screen* screen) {
+	switch (entity->type) {
 		case PLAYER:
 			player_render((Player*) entity, screen);
 			break;
@@ -121,7 +128,7 @@ void call_entity_render(Entity* entity, Screen* screen){
 
 void call_entity_touchItem(Entity* entity, ItemEntity* item){
 	Player* pl;
-	switch(entity->type){
+	switch (entity->type) {
 		case PLAYER:
 			pl = (Player*) entity;
 			itementity_take(item, (Player *) entity);
@@ -133,8 +140,8 @@ void call_entity_touchItem(Entity* entity, ItemEntity* item){
 }
 
 
-void call_entity_die(Entity* entity){
-	switch(entity->type){
+void call_entity_die(Entity* entity) {
+	switch (entity->type) {
 		case PLAYER:
 			player_die((Player *) entity);
 			break;
@@ -155,7 +162,7 @@ void call_entity_die(Entity* entity){
 
 
 void call_entity_doHurt(Entity* entity, int damage, int attackDir) {
-	switch(entity->type){
+	switch (entity->type) {
 		case PLAYER:
 			player_doHurt((Player *) entity, damage, attackDir);
 			break;
@@ -173,8 +180,8 @@ void call_entity_doHurt(Entity* entity, int damage, int attackDir) {
 }
 
 
-void call_entity_hurtTile(Entity* entity, TileID tile, int x, int y, int damage){
-	switch(entity->type){
+void call_entity_hurtTile(Entity* entity, TileID tile, int x, int y, int damage) {
+	switch (entity->type){
 		case SLIME:
 		case ZOMBIE:
 		case AIRWIZARD:
@@ -184,8 +191,9 @@ void call_entity_hurtTile(Entity* entity, TileID tile, int x, int y, int damage)
 	}
 }
 
-void call_entity_hurt(Entity* entity, Mob* mob, int damage, int attackDir){
-	switch(entity->type){
+
+void call_entity_hurt(Entity* entity, Mob* mob, int damage, int attackDir) {
+	switch (entity->type) {
 		case SLIME:
 		case ZOMBIE:
 		case AIRWIZARD:
@@ -195,8 +203,9 @@ void call_entity_hurt(Entity* entity, Mob* mob, int damage, int attackDir){
 	}
 }
 
-void call_entity_touchedBy(Entity* entity, Entity* e){
-	switch(entity->type){
+
+void call_entity_touchedBy(Entity* entity, Entity* e) {
+	switch (entity->type) {
 		case AIRWIZARD:
 			airwizard_touchedBy((AirWizard *) entity, e);
 			break;
@@ -211,11 +220,11 @@ void call_entity_touchedBy(Entity* entity, Entity* e){
 			break;
 
 		case ITEMENTITY:
-			if(((ItemEntity*)entity)->time > 30) call_entity_touchItem(e, (ItemEntity *) entity);
+			if (((ItemEntity*) entity)->time > 30) call_entity_touchItem(e, (ItemEntity *) entity);
 			break;
 
 		case PLAYER:
-			if(e->type != PLAYER) call_entity_touchedBy(e, entity);
+			if (e->type != PLAYER) call_entity_touchedBy(e, entity);
 			break;
 
 		case SLIME:
@@ -232,26 +241,22 @@ void call_entity_touchedBy(Entity* entity, Entity* e){
 }
 
 
-char call_entity_use(Entity* entity, Player* player, int attackDir){
-	switch(entity->type){
-		case ANVIL:
-			return anvil_use((Anvil *) entity, player, attackDir);
-		case CHEST:
-			return chest_use((Chest *) entity, player, attackDir);
-		case FURNACE:
-			return furnace_use((Furnace *) entity, player, attackDir);
-		case OVEN:
-			return oven_use((Oven *) entity, player, attackDir);
-		case WORKBENCH:
-			return workbench_use((Workbench *) entity, player, attackDir);
+char call_entity_use(Entity* entity, Player* player, int attackDir) {
+	switch (entity->type) {
+		case ANVIL: return anvil_use((Anvil *) entity, player, attackDir);
+		case CHEST: return chest_use((Chest *) entity, player, attackDir);
+		case FURNACE: return furnace_use((Furnace *) entity, player, attackDir);
+		case OVEN: return oven_use((Oven *) entity, player, attackDir);
+		case WORKBENCH: return workbench_use((Workbench *) entity, player, attackDir);
+
 		default:
 			return 0;
 	}
 }
 
 
-char call_entity_blocks(Entity* entity, Entity* e){
-	switch(entity->type){
+char call_entity_blocks(Entity* entity, Entity* e) {
+	switch (entity->type) {
 		case ANVIL:
 		case CHEST:
 		case FURNACE:
@@ -268,8 +273,10 @@ char call_entity_blocks(Entity* entity, Entity* e){
 			return 0;
 	}
 }
-char entity_ismob(Entity* entity){
-	switch(entity->type){
+
+
+char entity_ismob(Entity* entity) {
+	switch (entity->type) {
 		case SLIME:
 		case ZOMBIE:
 		case AIRWIZARD:
@@ -280,9 +287,10 @@ char entity_ismob(Entity* entity){
 	}
 }
 
-Furniture* entity_createFurniture(EntityId id){
+
+Furniture* entity_createFurniture(EntityId id) {
 	Furniture* furn = 0;
-	switch(id){
+	switch (id) {
 		case ANVIL:
 			furn = malloc(sizeof(Anvil));
 			anvil_create((Anvil *) furn);
@@ -312,8 +320,9 @@ Furniture* entity_createFurniture(EntityId id){
 	return furn;
 }
 
+
 char entity_isfurniture(Entity* entity) {
-	switch(entity->type){
+	switch (entity->type) {
 		case ANVIL:
 		case CHEST:
 		case FURNACE:
@@ -326,16 +335,17 @@ char entity_isfurniture(Entity* entity) {
 	}
 }
 
-extern inline int call_entity_getLightRadius(Entity* entity){
+
+extern inline int call_entity_getLightRadius(Entity* entity) {
 	int r, rr;
 	Player* p;
-	switch(entity->type){
+	switch (entity->type) {
 		case LANTERN:
 			return 8;
 		case PLAYER:
 			r = 2;
 			p = (Player*) entity;
-			if(p->activeItem && p->activeItem->id == FURNITURE){
+			if (p->activeItem && p->activeItem->id == FURNITURE) {
 				rr = call_entity_getLightRadius((Entity *) p->activeItem->add.furniture.furniture);
 				if(rr > r) return rr;
 			}
@@ -344,27 +354,18 @@ extern inline int call_entity_getLightRadius(Entity* entity){
 			return 0;
 	}
 }
-Furniture* furniture_create_copy(Furniture* old){
+
+
+Furniture* furniture_create_copy(Furniture* old) {
 	size_t size;
-	switch(old->entity.type){
-		case WORKBENCH:
-			size = sizeof(Workbench);
-			break;
-		case LANTERN:
-			size = sizeof(Lantern);
-			break;
-		case OVEN:
-			size = sizeof(Oven);
-			break;
-		case FURNACE:
-			size = sizeof(Furnace);
-			break;
-		case ANVIL:
-			size = sizeof(Anvil);
-			break;
-		case CHEST:
-			size = sizeof(Chest);
-			break;
+	switch (old->entity.type) {
+		case WORKBENCH: size = sizeof(Workbench); break;
+		case LANTERN: size = sizeof(Lantern); break;
+		case OVEN: size = sizeof(Oven); break;
+		case FURNACE: size = sizeof(Furnace); break;
+		case ANVIL: size = sizeof(Anvil); break;
+		case CHEST: size = sizeof(Chest); break;
+
 		default:
 			return 0;
 	}
@@ -373,15 +374,16 @@ Furniture* furniture_create_copy(Furniture* old){
 	memcpy(new, old, size);
 	old->name = 0;
 
-	if(old->entity.type == CHEST){
+	if (old->entity.type == CHEST) {
 		Chest* chest = (Chest*) new;
 		Chest* oldc = (Chest*) old;
 
 		inventory_create(&chest->inventory);
-		for(int e = 0; e < oldc->inventory.items.size; ++e){
+		for (int e = 0; e < oldc->inventory.items.size; ++e) {
 			Item* itm = oldc->inventory.items.elements[e];
 			inventory_addItem(&chest->inventory, itm);
-			if(itm->id == FURNITURE){
+
+			if (itm->id == FURNITURE) {
 				itm->add.furniture.furniture = 0;
 			}
 		}
@@ -390,8 +392,9 @@ Furniture* furniture_create_copy(Furniture* old){
 	return new;
 }
 
-void call_entity_free(Entity* entity){
-	switch(entity->type){
+
+void call_entity_free(Entity* entity) {
+	switch (entity->type) {
 		case TEXTPARTICLE:
 			textparticle_free((TextParticle *) entity);
 			break;
@@ -410,8 +413,9 @@ void call_entity_free(Entity* entity){
 	}
 }
 
-char call_entity_isSwimming(Entity* entity){
-	switch(entity->type){
+
+char call_entity_isSwimming(Entity* entity) {
+	switch (entity->type) {
 		case PLAYER:
 		case SLIME:
 		case ZOMBIE:

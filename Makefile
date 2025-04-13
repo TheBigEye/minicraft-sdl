@@ -1,13 +1,18 @@
 CC = gcc
 LD = ld
 
+# -DLEVELGENTEST
+# -DTEST_SHOWPORTALPOS
+# -DTEST_INVENTORY
+# -DGODMODE
+
 CFLAGS = -static-libgcc -m32 -Wall -Wextra -Wl,-Bstatic -Wl,--whole-archive -O2
 LDFLAGS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -limm32 -lgdi32 -lwinmm -lole32 -lcomdlg32 -lopengl32 -lcfgmgr32
 
 SOURCE_DIR = source
 
 # C Source files
-SOURCES = $(wildcard                           \
+SOURCES = $(wildcard                       \
 	$(SOURCE_DIR)/crafting/*.c             \
 	$(SOURCE_DIR)/entity/*.c               \
 	$(SOURCE_DIR)/entity/particle/*.c      \

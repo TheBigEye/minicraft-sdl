@@ -6,6 +6,7 @@
 
 #include <string.h>
 
+
 void workbench_create(Workbench* workbench) {
 	char* name = malloc(strlen("Workbench") + 1); //XXX ew
 	strcpy(name, "Workbench");
@@ -18,6 +19,7 @@ void workbench_create(Workbench* workbench) {
 	workbench->entity.xr = 3;
 	workbench->entity.yr = 2;
 }
+
 
 char workbench_use(Workbench* workbench, struct _Player* player, int attackDir){
 	crmenu_recipes = &workbenchRecipes;

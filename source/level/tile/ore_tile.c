@@ -9,12 +9,14 @@
 #include "../level.h"
 #include "../../item/resourceitem.h"
 
+
 void oretile_init(TileID id, Resource* toDrop){
 	tile_init(id);
-	Tile* t = tiles + id;
-	t->add.ore.toDrop = toDrop;
-	t->add.ore.color = toDrop->color & 0xffff00;
+	Tile* tile = tiles + id;
+	tile->add.ore.toDrop = toDrop;
+	tile->add.ore.color = toDrop->color & 0xffff00;
 }
+
 
 void oretile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	tiles[id].add.ore.color = (tiles[id].add.ore.toDrop->color & 0xffffff00) + getColor(level->dirtColor);
@@ -35,20 +37,20 @@ void oretile_hurt_(TileID id, Level* level, int x, int y, int dmg){
 
 	TextParticle* txt = malloc(sizeof(TextParticle));
 	char* tx_ = malloc(16);
-	sprintf(tx_, "%d\00", dmg);
+	sprintf(tx_, "%d", dmg);
 	textparticle_create(txt, tx_, x*16 + 8, y*16 + 8, getColor4(-1, 500, 500, 500));
 	level_addEntity(level, (Entity *) txt);
 	Random* random = &tiles[id].random;
-	if(dmg > 0){
+	if (dmg > 0) {
 		int count = random_next_int(random, 2);
-		if(damage >= random_next_int(random, 10) + 3){
+		if (damage >= random_next_int(random, 10) + 3) {
 			level_set_tile(level, x, y, DIRT, 0);
 			count += 2;
-		}else{
+		} else {
 			level_set_data(level, x, y, damage);
 		}
 
-		for(int i = 0; i < count; ++i){
+		for (int i = 0; i < count; ++i) {
 			ItemEntity* entity = malloc(sizeof(ItemEntity));
 			Item item;
 			resourceitem_create(&item, tiles[id].add.ore.toDrop);
@@ -60,9 +62,9 @@ void oretile_hurt_(TileID id, Level* level, int x, int y, int dmg){
 
 
 char oretile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
-	if(item->id == TOOL){
-		if(item->add.tool.type == PICKAXE){
-			if(player_payStamina(player, 6 - item->add.tool.level)){
+	if (item->id == TOOL) {
+		if (item->add.tool.type == PICKAXE) {
+			if (player_payStamina(player, 6 - item->add.tool.level)) {
 				oretile_hurt_(id, level, xt, yt, 1);
 				return 1;
 			}
@@ -72,6 +74,6 @@ char oretile_interact(TileID id, Level* level, int xt, int yt, Player* player, I
 }
 
 
-void oretile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
+void oretile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	oretile_hurt_(id, level, x, y, 0);
 }
