@@ -82,9 +82,9 @@ source/
   entity/          entity system: vtables, mobs, furniture, items, particles
   item/            items and tools (including power glove)
   crafting/        crafting recipes
-  screen/          menus (title, inventory, crafting, containers, …)
+  screen/          menus (title, inventory, crafting, containers, ...)
   sound/           SDL audio-callback mixer
-  generated/       packed assets (icons_data.*, sound_data.c) - committed
+  extern/          packed assets (icons_data.*, sound_data.c)
 ```
 
 ---
