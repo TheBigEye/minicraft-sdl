@@ -1,5 +1,5 @@
 /*
- * sound.h — C port of com.mojang.ld22.sound.Sound (Minicraft, LD22)
+ * sound.h - C port of com.mojang.ld22.sound.Sound (Minicraft, LD22)
  *
  * Original Java:
  *   public static final Sound playerHurt  = new Sound("/playerhurt.wav");
@@ -11,7 +11,7 @@
  *   public static final Sound craft       = new Sound("/craft.wav");
  *
  * The WAV samples are embedded in the binary at compile time by
- * scripts/sound2c.py (see source/generated/sound_data.c).
+ * scripts/sound2c.py (see source/extern/sound_data.c).
  *
  * Playback uses a tiny software mixer on top of the SDL audio callback
  * (works with both SDL 1.2 and SDL2, no SDL_mixer dependency, embedded

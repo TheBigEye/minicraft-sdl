@@ -18,7 +18,7 @@ struct _ItemEntity;
 typedef struct _Entity Entity;
 
 /*
- * Virtual method table — the C equivalent of Java's dynamic dispatch.
+ * Virtual method table - the C equivalent of Java's dynamic dispatch.
  *
  * Every Entity subclass (Mob, Player, Slime, Furniture, ItemEntity, ...)
  * defines a `static const EntityVTable <class>_vtable` in its own .c file,
@@ -74,7 +74,7 @@ typedef struct _EntityVTable {
 } EntityVTable;
 
 typedef struct _Entity{
-	const EntityVTable* vt;   /* virtual methods — set by every *_create() */
+	const EntityVTable* vt;   /* virtual methods - set by every *_create() */
 	EntityId type;            /* class tag (used where Java used instanceof) */
 	Random random;
 	int x, y;

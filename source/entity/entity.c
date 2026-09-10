@@ -29,7 +29,7 @@ void entity_remove(Entity* entity) {
 
 
 /* ------------------------------------------------------------------ */
-/* Default virtual implementations — the Java Entity base class body. */
+/* Default virtual implementations - the Java Entity base class body. */
 /* ------------------------------------------------------------------ */
 
 void entity_tick(Entity* entity) {

@@ -29,9 +29,9 @@ SOURCE_DIR = source
 #
 # Asset packing:
 #   scripts/spritesheet2c.py converts assets/icons.png into
-#   source/generated/icons_data.c/.h (same formula as the original Java
+#   source/extern/icons_data.c/.h (same formula as the original Java
 #   SpriteSheet: blue_channel / 64).
-#   scripts/sound2c.py converts assets/*.wav into source/generated/sound_data.c
+#   scripts/sound2c.py converts assets/*.wav into source/extern/sound_data.c
 #   (mono/16-bit/44100 Hz arrays, played by the mixer in source/sound/sound.c).
 #   The generated files are committed to the repo, so python3 is only needed
 #   when the assets change (fallback for cross-compilation environments).
@@ -123,7 +123,7 @@ SOURCES = $(wildcard 				  \
 	$(SOURCE_DIR)/crafting/*.c 	      \
 	$(SOURCE_DIR)/entity/*.c 	      \
 	$(SOURCE_DIR)/entity/particle/*.c \
-	$(SOURCE_DIR)/generated/*.c       \
+	$(SOURCE_DIR)/extern/*.c          \
 	$(SOURCE_DIR)/gfx/*.c 			  \
 	$(SOURCE_DIR)/item/*.c 			  \
 	$(SOURCE_DIR)/item/resource/*.c   \
@@ -141,7 +141,7 @@ HEADERS = $(wildcard                  \
 	$(SOURCE_DIR)/crafting/*.h        \
 	$(SOURCE_DIR)/entity/*.h          \
 	$(SOURCE_DIR)/entity/particle/*.h \
-	$(SOURCE_DIR)/generated/*.h       \
+	$(SOURCE_DIR)/extern/*.h          \
 	$(SOURCE_DIR)/gfx/*.h             \
 	$(SOURCE_DIR)/item/*.h            \
 	$(SOURCE_DIR)/item/resource/*.h   \
@@ -162,7 +162,7 @@ OBJECTS = $(SOURCES:.c=.o)
 # (the rules below appear before "all:", so make sure "all" stays the default)
 .DEFAULT_GOAL := all
 
-GENERATED_DIR = $(SOURCE_DIR)/generated
+GENERATED_DIR = $(SOURCE_DIR)/extern
 GEN_ICONS     = $(GENERATED_DIR)/icons_data.c $(GENERATED_DIR)/icons_data.h
 GEN_SOUNDS    = $(GENERATED_DIR)/sound_data.c
 GEN_FILES     = $(GEN_ICONS) $(GEN_SOUNDS)
@@ -171,18 +171,18 @@ GEN_FILES     = $(GEN_ICONS) $(GEN_SOUNDS)
 HAVE_PYTHON := $(shell $(PYTHON) --version >/dev/null 2>&1 && echo 1)
 
 ifeq ($(HAVE_PYTHON),1)
-# Spritesheet: assets/icons.png -> source/generated/icons_data.c/.h
+# Spritesheet: assets/icons.png -> source/extern/icons_data.c/.h
 $(GEN_ICONS): assets/icons.png scripts/spritesheet2c.py
 	@mkdir -p $(GENERATED_DIR)
 	@$(PYTHON) scripts/spritesheet2c.py assets/icons.png $(GENERATED_DIR)/icons_data icons
 
-# Sounds: assets/*.wav -> source/generated/sound_data.c
+# Sounds: assets/*.wav -> source/extern/sound_data.c
 $(GEN_SOUNDS): $(wildcard assets/*.wav) scripts/sound2c.py $(SOURCE_DIR)/sound/sound.h
 	@mkdir -p $(GENERATED_DIR)
 	@$(PYTHON) scripts/sound2c.py $(GENERATED_DIR)/sound_data.c $(wildcard assets/*.wav)
 endif
 
-# Object files need the generated sources/headers to EXIST before compiling.
+# Object files need the extern sources/headers to EXIST before compiling.
 # Order-only prerequisite: they are committed to the repo, so when python3 is
 # not available (cross-compilation hosts, CI, embedded toolchains) the build
 # simply uses the committed files.
@@ -196,7 +196,7 @@ ifeq ($(HAVE_PYTHON),1)
 	@$(PYTHON) scripts/spritesheet2c.py assets/icons.png $(GENERATED_DIR)/icons_data icons
 	@$(PYTHON) scripts/sound2c.py $(GENERATED_DIR)/sound_data.c assets/*.wav
 else
-	@echo "ERROR: $(PYTHON) not found — cannot regenerate assets." >&2; \
+	@echo "ERROR: $(PYTHON) not found - cannot regenerate assets." >&2; \
 	echo "       The committed files in $(GENERATED_DIR)/ will be used by the normal build." >&2; \
 	exit 1
 endif
@@ -275,7 +275,7 @@ VSC_ALLINC := $${workspaceFolder}/source $(VSC_SDLINC) $(VSC_SYSINC)
 VSC_CONFNAME := Minicraft-$(VSC_OSNAME)-SDL$(SDL)$(if $(filter 1,$(FB)),-FB)$(if $(filter 1,$(NO_AUDIO)),-NOAUDIO)$(if $(filter 1,$(DEBUG)),-DEBUG)
 
 # Create $(VSCODE_DIR) when the vsconfig target is requested.
-# NOTE: this runs at parse time on purpose — GNU Make expands a whole recipe
+# NOTE: this runs at parse time on purpose - GNU Make expands a whole recipe
 # before executing its first line, so $(file > ...) below could never rely on
 # a mkdir recipe line. Guarded by MAKECMDGOALS so normal builds never touch it.
 VSC_MKDIR_ERR :=
@@ -329,7 +329,7 @@ define VSCODE_TASKS
             "args": [ "DEBUG=1" ],
             "group": "build",
             "problemMatcher": [ "$$gcc" ],
-            "detail": "Debug build (-g -O0) — used by F5"
+            "detail": "Debug build (-g -O0) - used by F5"
         },
         {
             "label": "build-sdl1",

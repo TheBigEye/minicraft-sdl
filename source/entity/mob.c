@@ -64,7 +64,7 @@ void mob_doHurt(Mob* mob, int damage, int attackDir) {
 	if (mob->hurtTime > 0) return;
 
 	if (game_player->mob.entity.level == mob->entity.level) {
-		/* Sound.monsterHurt.play() — only if the player is close by
+		/* Sound.monsterHurt.play() - only if the player is close by
 		 * (original Java: Mob.doHurt, distance check vs level.player) */
 		int xd = game_player->mob.entity.x - mob->entity.x;
 		int yd = game_player->mob.entity.y - mob->entity.y;
@@ -92,7 +92,7 @@ void mob_doHurt(Mob* mob, int damage, int attackDir) {
 
 void mob_hurt(Mob* mob, Mob* by, int damage, int attackDir) {
 	(void) by;
-	/* Java: doHurt() is virtual — Player overrides it. */
+	/* Java: doHurt() is virtual - Player overrides it. */
 	mob->entity.vt->doHurt(&mob->entity, damage, attackDir);
 }
 

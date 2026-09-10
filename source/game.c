@@ -27,7 +27,7 @@
 #include "gfx/color.h"
 #include "entity/player.h"
 #include "item/item.h"
-#include "generated/icons_data.h"
+#include "extern/icons_data.h"
 #include "sound/sound.h"
 
 // Helper: print available SDL video drivers (useful for embedded / RISC-V / no-X11 systems)

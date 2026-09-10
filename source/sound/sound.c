@@ -1,5 +1,5 @@
 /*
- * sound.c — tiny software mixer over the SDL audio callback.
+ * sound.c - tiny software mixer over the SDL audio callback.
  *
  * Works with SDL 1.2 and SDL2 (SDL_OpenAudio + SDL_LockAudio exist in both).
  * We request mono 16-bit @ 44100 Hz (the format of the embedded assets);
@@ -123,7 +123,7 @@ void sound_play(SoundId id) {
 	SDL_LockAudio();
 
 	/* Find a free voice; if none, steal one round-robin (like the Java
-	 * version, sounds never block gameplay — they just overlap). */
+	 * version, sounds never block gameplay - they just overlap). */
 	int slot = -1;
 	for (int i = 0; i < SOUND_MAX_VOICES; ++i) {
 		if (!voices[i].active) {

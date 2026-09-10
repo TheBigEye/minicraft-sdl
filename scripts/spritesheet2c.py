@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-spritesheet2c.py — Convert a spritesheet PNG into C arrays (Minicraft format).
+spritesheet2c.py - Convert a spritesheet PNG into C arrays (Minicraft format).
 
 Replicates EXACTLY what the original Java code does (SpriteSheet.java):
 
@@ -22,7 +22,7 @@ Generates OUTPUT_BASENAME.c and OUTPUT_BASENAME.h containing:
     extern const SpriteSheet <prefix>_spritesheet;   (in the .h)
 
 Example:
-    python3 scripts/spritesheet2c.py assets/icons.png source/generated/icons_data icons
+    python3 scripts/spritesheet2c.py assets/icons.png source/extern/icons_data icons
 """
 
 import os
@@ -169,7 +169,7 @@ def generate_c(png_path, out_base, prefix):
     guard = ("GENERATED_%s_H_" % prefix).upper()
 
     header = (
-        "/* GENERATED FILE — DO NOT EDIT.\n"
+        "/* GENERATED FILE - DO NOT EDIT.\n"
         " * Produced by scripts/spritesheet2c.py from: %s\n"
         " * Formula (same as original Java SpriteSheet): value = blue_channel / 64\n"
         " */\n"
@@ -185,7 +185,7 @@ def generate_c(png_path, out_base, prefix):
     )
 
     source = (
-        "/* GENERATED FILE — DO NOT EDIT.\n"
+        "/* GENERATED FILE - DO NOT EDIT.\n"
         " * Produced by scripts/spritesheet2c.py from: %s (%dx%d)\n"
         " * Formula (same as original Java SpriteSheet): value = blue_channel / 64\n"
         " */\n"

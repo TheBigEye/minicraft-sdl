@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-sound2c.py — Pack WAV sound effects into a C source file (embedded in binary).
+sound2c.py - Pack WAV sound effects into a C source file (embedded in binary).
 
 Reads standard PCM WAV files with the stdlib `wave` module (no dependencies),
 normalizes them all to mono / 16-bit / 44100 Hz (downmix + linear resample
-done HERE, at build time, so the in-game mixer stays tiny and fast — ideal
+done HERE, at build time, so the in-game mixer stays tiny and fast - ideal
 for embedded targets), and emits a table indexed by the SoundId enum from
 source/sound/sound.h.
 
@@ -12,7 +12,7 @@ Usage:
     python3 scripts/sound2c.py OUTPUT.c INPUT1.wav [INPUT2.wav ...]
 
 Example:
-    python3 scripts/sound2c.py source/generated/sound_data.c assets/*.wav
+    python3 scripts/sound2c.py source/extern/sound_data.c assets/*.wav
 
 File name (without extension) → SoundId mapping:
     playerhurt.wav  → SND_PLAYERHURT     (Sound.playerHurt)
@@ -128,7 +128,7 @@ def main(argv):
     for path in argv[2:]:
         base = os.path.splitext(os.path.basename(path))[0].lower()
         if base not in NAME_MAP:
-            print("sound2c: WARNING: unknown asset %r — skipped" % path, file=sys.stderr)
+            print("sound2c: WARNING: unknown asset %r - skipped" % path, file=sys.stderr)
             continue
         enum_name, java_name = NAME_MAP[base]
         samples, rate = load_wav_normalized(path)
@@ -140,12 +140,12 @@ def main(argv):
     missing = [e for e, (_j) in NAME_MAP.items() if e[1] not in entries]
     for enum_name, java_name in NAME_MAP.values():
         if enum_name not in entries:
-            print("sound2c: WARNING: no asset for %s (%s) — silent entry"
+            print("sound2c: WARNING: no asset for %s (%s) - silent entry"
                   % (enum_name, java_name), file=sys.stderr)
 
     lines = []
-    lines.append("/* GENERATED FILE — DO NOT EDIT.")
-    lines.append(" * Produced by scripts/sound2c.py — sound effects packed into the binary.")
+    lines.append("/* GENERATED FILE - DO NOT EDIT.")
+    lines.append(" * Produced by scripts/sound2c.py - sound effects packed into the binary.")
     lines.append(" * All samples normalized to mono / 16-bit signed / %d Hz." % TARGET_RATE)
     lines.append(" */")
     lines.append('#include "../sound/sound.h"')
