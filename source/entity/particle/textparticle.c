@@ -5,8 +5,28 @@
 
 #include <string.h>
 
+/* The TextParticle vtable (= the Java `TextParticle` class). */
+static const EntityVTable textparticle_vtable = {
+	.tick           = (vt_tick_fn) textparticle_tick,
+	.render         = (vt_render_fn) textparticle_render,
+	.blocks         = entity_blocks,
+	.hurt           = entity_hurt,
+	.hurtTile       = entity_hurtTile,
+	.touchedBy      = entity_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = entity_die,
+	.doHurt         = entity_doHurt,
+	.isSwimming     = entity_isSwimming,
+	.free           = (vt_free_fn) textparticle_free,
+};
+
 void textparticle_create(TextParticle* particle, char* message, int x, int y, int col) {
 	entity_create(&particle->entity);
+	particle->entity.vt = &textparticle_vtable;
 
 	particle->entity.type = TEXTPARTICLE;
 	particle->time = 0;

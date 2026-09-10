@@ -1,8 +1,9 @@
 #include "level.h"
+#include <string.h>
+#include <stdlib.h>
 #include "levelgen/levelgen.h"
 #include "tile/tile.h"
 
-#include "../entity/_entity_caller.h"
 #include "../entity/slime.h"
 #include "../entity/zombie.h"
 #include "../entity/airwizard.h"
@@ -113,7 +114,7 @@ int _cmpEnt(const void* ent, const void* ent2) {
 void level_sortAndRender(Level* level, Screen* screen, ArrayList* list) {
 	qsort(list->elements, list->size, sizeof(*list->elements), _cmpEnt);
 	for (int i = 0; i < list->size; ++i) {
-		call_entity_render((Entity*) list->elements[i], screen);
+		((Entity*) list->elements[i])->vt->render((Entity*) list->elements[i], screen);
 	}
 }
 
@@ -145,7 +146,7 @@ void level_trySpawn(Level* level, int count){
 		if (mob_findStartPos(mob, level)) {
 			level_addEntity(level, &mob->entity);
 		} else {
-			call_entity_free(&mob->entity);
+			mob->entity.vt->free(&mob->entity);
 			free(mob);
 		}
 	}
@@ -207,7 +208,7 @@ void renderLight(Level* level, Screen* screen, int xScroll, int yScroll) {
 
 			for (int i = 0; i < entities->size; ++i) {
 				Entity* e = entities->elements[i];
-				int lr = call_entity_getLightRadius(e);
+				int lr = e->vt->getLightRadius(e);
 				if(lr > 0) screen_render_light(screen, e->x - 1, e->y - 4, lr * 8);
 			}
 
@@ -314,14 +315,14 @@ void level_tick(Level* level) {
 		int xto = e->x >> 4;
 		int yto = e->y >> 4;
 
-		call_entity_tick(e);
+		e->vt->tick(e);
 
 		if (e->removed) {
 			arraylist_removeId(&level->entities, i--);
 			level_removeEntity(level, xto, yto, e);
 
 			if (e->type != PLAYER) {
-				call_entity_free((Entity*) e);
+				((Entity*) e)->vt->free((Entity*) e);
 				free(e);
 			}
 
@@ -354,7 +355,7 @@ void level_free(Level* lvl) {
 				Entity* e = list->elements[i];
 
 				if (e->type != PLAYER) {
-					call_entity_free((Entity*) e);
+					((Entity*) e)->vt->free((Entity*) e);
 					free(e);
 				}
 			}

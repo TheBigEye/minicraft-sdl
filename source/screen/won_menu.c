@@ -1,4 +1,5 @@
 #include "won_menu.h"
+#include <stdio.h>
 #include "../gfx/screen.h"
 #include "../gfx/color.h"
 #include "../gfx/font.h"

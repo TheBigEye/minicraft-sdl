@@ -1,5 +1,7 @@
 #include "recipe.h"
-#include "../entity/_entity_caller.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "../entity/entityid.h"
 #include "../entity/furniture.h"
 #include "../entity/inventory.h"

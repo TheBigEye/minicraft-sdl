@@ -1,4 +1,5 @@
 #include "menu.h"
+#include <stdlib.h>
 #include "container_menu.h"
 #include "../game.h"
 #include "../inputhandler.h"

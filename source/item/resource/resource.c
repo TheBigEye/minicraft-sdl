@@ -32,13 +32,15 @@ Resource gem;
 
 
 void init_resource(Resource* resource, char* name, int sprite, int color) {
-	memset(resource->name, 0, sizeof(resource->name));
+	size_t len = strlen(name);
 
-	if (strlen(name) > 6) {
+	if (len > 6) {
         printf("Name '%s' cannot be longer than six characters!\n", name);
+        len = 6;
     }
 
-	memcpy(resource->name, name, 6);
+	memset(resource->name, 0, sizeof(resource->name));
+	memcpy(resource->name, name, len); /* NUL padding already zeroed above */
 	resource->sprite = sprite;
 	resource->color = color;
 }

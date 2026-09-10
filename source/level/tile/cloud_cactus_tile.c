@@ -1,4 +1,6 @@
 #include "tile.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "../../gfx/color.h"
 #include "../../entity/particle/smashparticle.h"

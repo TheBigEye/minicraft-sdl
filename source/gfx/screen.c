@@ -1,10 +1,12 @@
 #include "screen.h"
 
+#include <stdlib.h>
+
 const int BIT_MIRROR_X = 0x01;
 const int BIT_MIRROR_Y = 0x02;
 const int dither[] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
 
-void create_screen(Screen* screen, int w, int h, SpriteSheet* sheet) {
+void create_screen(Screen* screen, int w, int h, const SpriteSheet* sheet) {
 	screen->sheet = sheet;
 	screen->w = w;
 	screen->h = h;

@@ -1,4 +1,5 @@
 #include "../inputhandler.h"
+#include <stdio.h>
 #include "../game.h"
 #include "../gfx/font.h"
 #include "../gfx/color.h"

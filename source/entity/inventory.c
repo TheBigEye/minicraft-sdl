@@ -1,4 +1,5 @@
 #include "inventory.h"
+#include <stdlib.h>
 #include "../utils/arraylist.h"
 #include "../item/item.h"
 #include "../item/itemids.h"

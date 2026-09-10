@@ -1,9 +1,9 @@
 #include "item.h"
+#include <stdlib.h>
 #include "powergloveitem.h"
 #include "resourceitem.h"
 #include "furniture_item.h"
 #include "../entity/furniture.h"
-#include "../entity/_entity_caller.h"
 #include "tool_item.h"
 #include <string.h>
 
@@ -156,7 +156,8 @@ void item_free(Item* item) {
 	switch(item->id){
 		case FURNITURE:
 			if(item->add.furniture.furniture) {
-				call_entity_free((Entity *) item->add.furniture.furniture);
+				Entity* furn = (Entity *) item->add.furniture.furniture;
+				furn->vt->free(furn);
 				free(item->add.furniture.furniture);
 			}
 			break;

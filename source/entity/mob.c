@@ -1,14 +1,38 @@
 #include "mob.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "../game.h"
 #include "../gfx/color.h"
 #include "../level/tile/tileids.h"
-#include "_entity_caller.h"
 #include "entity.h"
 #include "particle/textparticle.h"
+#include "../sound/sound.h"
+
+
+/* The Mob vtable (= the Java `Mob` class). Mob subclasses copy these
+ * entries and override only what they override in Java. */
+const EntityVTable mob_vtable = {
+	.tick           = (vt_tick_fn) mob_tick,
+	.render         = entity_render,   /* abstract in Java; concrete mobs always override */
+	.blocks         = (vt_blocks_fn) mob_blocks,
+	.hurt           = (vt_hurt_fn) mob_hurt,
+	.hurtTile       = (vt_hurtTile_fn) mob_hurtTile,
+	.touchedBy      = entity_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = (vt_die_fn) mob_die,
+	.doHurt         = (vt_doHurt_fn) mob_doHurt,
+	.isSwimming     = (vt_isSwimming_fn) mob_isSwimming,
+	.free           = entity_free,
+};
 
 
 void mob_create(Mob* mob){
 	entity_create(&mob->entity);
+	mob->entity.vt = &mob_vtable; /* subclasses override with their own vtable */
 
 	mob->walkDist = mob->dir = mob->hurtTime = 0;
 	mob->xKnockback = mob->yKnockback = 0;
@@ -22,17 +46,31 @@ void mob_create(Mob* mob){
 }
 
 
+char entity_ismob(Entity* entity) {
+	/* The C equivalent of Java's `e instanceof Mob` checks. */
+	switch (entity->type) {
+		case SLIME:
+		case ZOMBIE:
+		case AIRWIZARD:
+		case PLAYER:
+			return 1;
+		default:
+			return 0;
+	}
+}
+
+
 void mob_doHurt(Mob* mob, int damage, int attackDir) {
 	if (mob->hurtTime > 0) return;
 
 	if (game_player->mob.entity.level == mob->entity.level) {
-		/* TODO: Sounds
-		 * int xd = level.player.x - x;
-			int yd = level.player.y - y;
-			if (xd * xd + yd * yd < 80 * 80) {
-				Sound.monsterHurt.play();
-			}
-		*/
+		/* Sound.monsterHurt.play() — only if the player is close by
+		 * (original Java: Mob.doHurt, distance check vs level.player) */
+		int xd = game_player->mob.entity.x - mob->entity.x;
+		int yd = game_player->mob.entity.y - mob->entity.y;
+		if (xd * xd + yd * yd < 80 * 80) {
+			sound_play(SND_MONSTERHURT);
+		}
 	}
 
 	TextParticle* text_particle = malloc(sizeof(TextParticle));
@@ -53,13 +91,22 @@ void mob_doHurt(Mob* mob, int damage, int attackDir) {
 
 
 void mob_hurt(Mob* mob, Mob* by, int damage, int attackDir) {
-	call_entity_doHurt(&mob->entity, damage, attackDir);
+	(void) by;
+	/* Java: doHurt() is virtual — Player overrides it. */
+	mob->entity.vt->doHurt(&mob->entity, damage, attackDir);
 }
 
 
 void mob_hurtTile(Mob* mob, TileID tile, int x, int y, int damage) {
+	(void) tile; (void) x; (void) y;
 	int attackDir = mob->dir ^ 1;
-	call_entity_doHurt(&mob->entity, damage, attackDir);
+	mob->entity.vt->doHurt(&mob->entity, damage, attackDir);
+}
+
+
+char mob_blocks(Mob* mob, Entity* entity) {
+	/* Java: Mob.blocks(e) { return e.isBlockableBy(this); } */
+	return entity->vt->isBlockableBy(entity, mob);
 }
 
 
@@ -114,7 +161,7 @@ void mob_tick(Mob* mob) {
 	}
 
 	if (mob->health <= 0) {
-		call_entity_die(&mob->entity);
+		mob->entity.vt->die(&mob->entity);   /* Java: die() is virtual */
 	}
 
 	if (mob->hurtTime > 0) {
@@ -150,7 +197,7 @@ void mob_heal(Mob* mob, int heal){
 
 
 uint8_t mob_move(Mob* mob, int xa, int ya) {
-	if (call_entity_isSwimming(&mob->entity)) {
+	if (mob->entity.vt->isSwimming(&mob->entity)) {
 		if (mob->swimTimer++ % 2 == 0) {
             return 1;
         }

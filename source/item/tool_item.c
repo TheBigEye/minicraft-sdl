@@ -1,4 +1,6 @@
 #include "tool_item.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "../gfx/color.h"
 #include "../gfx/screen.h"
 #include "../gfx/font.h"

@@ -1,4 +1,5 @@
 #include "itemids.h"
+#include <stdio.h>
 #include "resourceitem.h"
 #include "resource/resource.h"
 #include <stdlib.h>

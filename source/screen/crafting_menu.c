@@ -4,7 +4,10 @@
 #include "../crafting/recipe.h"
 #include "../game.h"
 #include "../inputhandler.h"
+#include "../sound/sound.h"
 
+#include <stdio.h>
+#include <string.h>
 const menu_vt craftingmenu_vt = {
 	&craftingmenu_tick,
 	&craftingmenu_render,
@@ -30,7 +33,7 @@ void craftingmenu_tick(){
 		if(r->canCraft){
 			recipe_deductCost(r, game_player);
 			recipe_craft(r, game_player);
-			//TODO sounds Sound.craft.play();
+			sound_play(SND_CRAFT); // Sound.craft.play()
 		}
 
 		for(int i = 0; i < crmenu_recipes->size; ++i){

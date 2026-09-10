@@ -1,16 +1,37 @@
 #include "airwizard.h"
+#include <stdlib.h>
 #include "../game.h"
 #include "../gfx/screen.h"
 #include "../gfx/color.h"
-#include "_entity_caller.h"
 #include "spark.h"
 #include "../level/level.h"
+#include "../sound/sound.h"
 
 #include <math.h>
+
+/* The AirWizard vtable (= the Java `AirWizard` class). */
+static const EntityVTable airwizard_vtable = {
+	.tick           = (vt_tick_fn) airwizard_tick,
+	.render         = (vt_render_fn) airwizard_render,
+	.blocks         = (vt_blocks_fn) mob_blocks,
+	.hurt           = (vt_hurt_fn) mob_hurt,
+	.hurtTile       = (vt_hurtTile_fn) mob_hurtTile,
+	.touchedBy      = (vt_touchedBy_fn) airwizard_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = (vt_die_fn) airwizard_die,
+	.doHurt         = (vt_doHurt_fn) airwizard_doHurt,
+	.isSwimming     = (vt_isSwimming_fn) mob_isSwimming,
+	.free           = entity_free,
+};
 
 
 void airwizard_create(AirWizard* wizard){
 	mob_create(&wizard->mob);
+	wizard->mob.entity.vt = &airwizard_vtable;
 
 	wizard->mob.entity.type = AIRWIZARD;
 	wizard->mob.entity.x = random_next_int(&wizard->mob.entity.random, 64 * 16);
@@ -137,7 +158,7 @@ void airwizard_render(AirWizard* wizard, Screen* screen){
 
 void airwizard_touchedBy(AirWizard* wizard, Entity* entity){
 	if (entity->type == PLAYER) {
-		call_entity_hurt(entity, &wizard->mob, 3, wizard->mob.dir);
+		entity->vt->hurt(entity, &wizard->mob, 3, wizard->mob.dir);
 	}
 }
 
@@ -150,5 +171,5 @@ void airwizard_die(AirWizard* wizard){
 		player_gameWon(game_player);
 	}
 
-	// TODO sounds Sound.bossdeath.play();
+	sound_play(SND_BOSSDEATH); // Sound.bossdeath.play()
 }

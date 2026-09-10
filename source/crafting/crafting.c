@@ -1,4 +1,5 @@
 #include "crafting.h"
+#include <stdlib.h>
 #include "recipe.h"
 #include "../utils/arraylist.h"
 

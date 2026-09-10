@@ -1,4 +1,5 @@
 #include "chest.h"
+#include <stdlib.h>
 #include "player.h"
 #include "inventory.h"
 #include "../screen/container_menu.h"
@@ -8,11 +9,31 @@
 #include <string.h>
 
 
+/* The Chest vtable (= the Java `Chest` class): Furniture + use() + free(). */
+static const EntityVTable chest_vtable = {
+	.tick           = (vt_tick_fn) furniture_tick,
+	.render         = (vt_render_fn) furniture_render,
+	.blocks         = (vt_blocks_fn) furniture_blocks,
+	.hurt           = entity_hurt,
+	.hurtTile       = entity_hurtTile,
+	.touchedBy      = (vt_touchedBy_fn) furniture_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = (vt_use_fn) chest_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = entity_die,
+	.doHurt         = entity_doHurt,
+	.isSwimming     = entity_isSwimming,
+	.free           = (vt_free_fn) chest_free,
+};
+
 void chest_create(Chest* chest){
 	char* name = malloc(strlen("Chest") + 1); //XXX ew
 	strcpy(name, "Chest");
 
 	furniture_create((Furniture *) chest, name);
+	chest->furniture.entity.vt = &chest_vtable;
 
 	chest->furniture.entity.type = CHEST;
 	chest->furniture.col = getColor4(-1, 110, 331, 552);

@@ -16,11 +16,11 @@ typedef struct _Screen{
 	unsigned char* pixels;
 	int pixelsSize;
 
-	SpriteSheet* sheet;
+	const SpriteSheet* sheet;
 } Screen;
 
 
-void create_screen(Screen* screen, int w, int h, SpriteSheet* sheet);
+void create_screen(Screen* screen, int w, int h, const SpriteSheet* sheet);
 void clear_screen(Screen* screen, int color);
 void render_screen(Screen* screen, int xp, int yp, int tile, int colors, int bits);
 void screen_set_offset(Screen* screen, int x, int y);

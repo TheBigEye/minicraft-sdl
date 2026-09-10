@@ -4,7 +4,6 @@
 #include "itemids.h"
 #include <string.h>
 #include "../entity/furniture.h"
-#include "../entity/_entity_caller.h"
 
 void powergloveitem_create(Item* item){
 	item->id = POWERGLOVE;

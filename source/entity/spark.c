@@ -3,12 +3,37 @@
 #include "../gfx/screen.h"
 #include "../utils/arraylist.h"
 #include "../level/level.h"
-#include "_entity_caller.h"
 #include "../gfx/color.h"
+
+/* Java: Spark.isBlockableBy(Mob mob) { return false; } */
+char spark_isBlockableBy(Spark* spark, Mob* mob) {
+	(void) spark; (void) mob;
+	return 0;
+}
+
+/* The Spark vtable (= the Java `Spark` class). */
+static const EntityVTable spark_vtable = {
+	.tick           = (vt_tick_fn) spark_tick,
+	.render         = (vt_render_fn) spark_render,
+	.blocks         = entity_blocks,
+	.hurt           = entity_hurt,
+	.hurtTile       = entity_hurtTile,
+	.touchedBy      = entity_touchedBy,
+	.isBlockableBy  = (vt_isBlockableBy_fn) spark_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = entity_die,
+	.doHurt         = entity_doHurt,
+	.isSwimming     = entity_isSwimming,
+	.free           = entity_free,
+};
 
 
 void spark_create(Spark* spark, AirWizard* owner, double xa, double ya) {
 	entity_create(&spark->entity);
+	spark->entity.vt = &spark_vtable;
 
 	spark->entity.type = SPARK;
 	spark->owner = owner;
@@ -42,7 +67,7 @@ void spark_tick(Spark* spark) {
 	for (int i = 0; i < toHit.size; ++i) {
 		Entity* e = toHit.elements[i];
 		if (entity_ismob(e) && e->type != AIRWIZARD){
-			call_entity_hurt(e, &spark->owner->mob, 1, ((Mob*) e)->dir ^ 1);
+			e->vt->hurt(e, &spark->owner->mob, 1, ((Mob*) e)->dir ^ 1);
 		}
 	}
 	arraylist_remove(&toHit);

@@ -1,4 +1,5 @@
 #include "tile.h"
+#include <stdlib.h>
 #include "../../item/resourceitem.h"
 #include "../../entity/itementity.h"
 #include "../../entity/player.h"

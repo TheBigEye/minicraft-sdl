@@ -1,15 +1,18 @@
 #include "mob.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "../level/tile/tileids.h"
 #include "../level/tile/tile.h"
 #include "../inputhandler.h"
-#include "_entity_caller.h"
 #include "inventory.h"
 #include "player.h"
+#include "itementity.h"
 #include "../item/powergloveitem.h"
 #include "../screen/menu.h"
 #include "particle/textparticle.h"
 #include "workbench.h"
 #include "../item/furniture_item.h"
+#include "../sound/sound.h"
 #include "../item/tooltype.h"
 #include "../item/tool_item.h"
 #include "../item/resourceitem.h"
@@ -20,8 +23,29 @@
 #include "chest.h"
 #include "../gfx/color.h"
 
+/* The Player vtable (= the Java `Player` class). Inherits Mob's entries and
+ * overrides exactly what Player.java overrides. */
+static const EntityVTable player_vtable = {
+	.tick           = (vt_tick_fn) player_tick,
+	.render         = (vt_render_fn) player_render,
+	.blocks         = (vt_blocks_fn) mob_blocks,
+	.hurt           = (vt_hurt_fn) mob_hurt,
+	.hurtTile       = (vt_hurtTile_fn) mob_hurtTile,
+	.touchedBy      = (vt_touchedBy_fn) player_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = (vt_touchItem_fn) player_touchItem,
+	.canSwim        = (vt_canSwim_fn) player_canSwim,
+	.use            = entity_use,
+	.getLightRadius = (vt_getLightRadius_fn) player_getLightRadius,
+	.die            = (vt_die_fn) player_die,
+	.doHurt         = (vt_doHurt_fn) player_doHurt,
+	.isSwimming     = (vt_isSwimming_fn) mob_isSwimming,
+	.free           = (vt_free_fn) player_free,
+};
+
 void player_create(Player* player) {
 	mob_create(&player->mob);
+	player->mob.entity.vt = &player_vtable;
 
 	player->mob.entity.type = PLAYER;
 	player->attackTime = player->attackDir = 0;
@@ -115,6 +139,52 @@ int player_getAttackDamage(Player* player, Entity* e) {
 }
 
 
+char player_canSwim(Player* player) {
+	/* Java: public boolean canSwim() { return true; } */
+	(void) player;
+	return 1;
+}
+
+
+void player_touchItem(Player* player, ItemEntity* item) {
+	/* Java: public void touchItem(ItemEntity itemEntity) {
+	 *           itemEntity.take(this);
+	 *           inventory.add(itemEntity.item);
+	 *       } */
+	itementity_take(item, player);
+	inventory_addItem(&player->inventory, &item->item);
+}
+
+
+void player_touchedBy(Player* player, Entity* entity) {
+	/* Java: protected void touchedBy(Entity entity) {
+	 *           if (!(entity instanceof Player)) entity.touchedBy(this);
+	 *       } */
+	if (entity->type != PLAYER) {
+		entity->vt->touchedBy(entity, (Entity*) player);
+	}
+}
+
+
+int player_getLightRadius(Player* player) {
+	/* Java: public int getLightRadius() {
+	 *           int r = 2;
+	 *           if (activeItem instanceof FurnitureItem) {
+	 *               int rr = furniture.getLightRadius();
+	 *               if (rr > r) r = rr;
+	 *           }
+	 *           return r;
+	 *       } */
+	int r = 2;
+	if (player->activeItem && player->activeItem->id == FURNITURE) {
+		Furniture* f = player->activeItem->add.furniture.furniture;
+		int rr = f->entity.vt->getLightRadius(&f->entity);
+		if (rr > r) r = rr;
+	}
+	return r;
+}
+
+
 void player_hurt(Player* player, int x0, int y0, int x1, int y1) {
 	ArrayList entities;
 	create_arraylist(&entities);
@@ -122,8 +192,8 @@ void player_hurt(Player* player, int x0, int y0, int x1, int y1) {
 
 	for (int i = 0; i < entities.size; ++i) {
 		Entity* entity = entities.elements[i];
-		if (entity != player) {
-            call_entity_hurt(entity, &player->mob, player_getAttackDamage(player, entity), player->attackDir);
+		if (entity != (Entity*) player) {
+            entity->vt->hurt(entity, &player->mob, player_getAttackDamage(player, entity), player->attackDir);
         }
 	}
 
@@ -138,7 +208,7 @@ char player_interact(Player* player, int x0, int y0, int x1, int y1) {
 
 	for (int i = 0; i < entities.size; ++i) {
 		Entity* entity = entities.elements[i];
-		if (entity != player) {
+		if (entity != (Entity*) player) {
 			if (entity_interact(entity, player, player->activeItem, player->attackDir)) {
 				arraylist_remove(&entities);
 				return 1;
@@ -241,7 +311,7 @@ void player_doHurt(Player* player, int damage, int attackDir){
         return;
     }
 
-	// TODO: Sound.playerHurt.play();
+	sound_play(SND_PLAYERHURT); // Sound.playerHurt.play()
 
     TextParticle* text_particle = malloc(sizeof(TextParticle));
 	char* text = malloc(16);
@@ -264,7 +334,7 @@ void player_doHurt(Player* player, int damage, int attackDir){
 
 void player_die(Player* player){
 	mob_die(&player->mob);
-	// TODO Sound.playerDeath.play();
+	sound_play(SND_PLAYERDEATH); // Sound.playerDeath.play()
 }
 
 
@@ -275,8 +345,8 @@ char player_usexy(Player* player, int x0, int y0, int x1, int y1) {
 
 	for (int i = 0; i < entities.size; ++i) {
 		Entity* entity = entities.elements[i];
-		if (entity != player) {
-			if (call_entity_use(entity, player, player->attackDir)) {
+		if (entity != (Entity*) player) {
+			if (entity->vt->use(entity, player, player->attackDir)) {
 				arraylist_remove(&entities);
 				return 1;
 			}
@@ -366,7 +436,7 @@ void player_tick(Player* player){
 
 	if (player->staminaRechargeDelay == 0) {
 		++player->staminaRecharge;
-		if (call_entity_isSwimming(&player->mob.entity)) {
+		if (player->mob.entity.vt->isSwimming(&player->mob.entity)) {
 			player->staminaRecharge = 0;
 		}
 
@@ -386,7 +456,7 @@ void player_tick(Player* player){
 	if (left.down) --xa;
 	if (right.down) ++xa;
 
-	if (call_entity_isSwimming(&player->mob.entity) && player->mob.tickTime % 60 == 0) {
+	if (player->mob.entity.vt->isSwimming(&player->mob.entity) && player->mob.tickTime % 60 == 0) {
 		if (player->stamina > 0) {
             --player->stamina;
         } else {
@@ -455,7 +525,7 @@ void player_render(Player* player, Screen* screen){
 	int xo = player->mob.entity.x - 8;
 	int yo = player->mob.entity.y - 11;
 
-	if (call_entity_isSwimming(&player->mob.entity)) {
+	if (player->mob.entity.vt->isSwimming(&player->mob.entity)) {
 		yo += 4;
 
 		int waterColor = getColor4(-1, -1, 115, 335);
@@ -488,7 +558,7 @@ void player_render(Player* player, Screen* screen){
 	render_screen(screen, xo + 8 * flip1, yo + 0, xt + yt*32, col, flip1);
 	render_screen(screen, xo + 8 - 8 * flip1, yo + 0, xt + 1 + yt*32, col, flip1);
 
-	if (!call_entity_isSwimming(&player->mob.entity)) {
+	if (!player->mob.entity.vt->isSwimming(&player->mob.entity)) {
 		render_screen(screen, xo + 8 * flip2, yo + 8, xt + (yt + 1) * 32, col, flip2);
 		render_screen(screen, xo + 8 - 8 * flip2, yo + 8, xt + 1 + (yt + 1) * 32, col, flip2);
 	}
@@ -523,7 +593,8 @@ void player_render(Player* player, Screen* screen){
 	if (player->activeItem && player->activeItem->id == FURNITURE) {
 		player->activeItem->add.furniture.furniture->entity.x = player->mob.entity.x;
 		player->activeItem->add.furniture.furniture->entity.y = yo;
-		call_entity_render((Entity *) player->activeItem->add.furniture.furniture, screen);
+		Entity* furn = (Entity *) player->activeItem->add.furniture.furniture;
+		furn->vt->render(furn, screen);
 	}
 }
 
