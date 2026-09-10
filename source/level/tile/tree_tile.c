@@ -1,4 +1,5 @@
 #include "tile.h"
+#include <stdlib.h>
 #include "../../entity/particle/smashparticle.h"
 #include "../../entity/particle/textparticle.h"
 #include "../../entity/itementity.h"

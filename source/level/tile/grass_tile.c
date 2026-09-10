@@ -1,4 +1,5 @@
 #include "tile.h"
+#include <stdlib.h>
 #include "../level.h"
 #include "../../entity/player.h"
 #include "../../entity/itementity.h"
@@ -6,6 +7,7 @@
 #include "../../item/resourceitem.h"
 #include "../../gfx/color.h"
 #include "../../utils/javarandom.h"
+#include "../../sound/sound.h"
 
 static Random trandom;
 
@@ -23,7 +25,7 @@ char grasstile_interact(TileID id, Level* level, int xt, int yt, Player* player,
 		if (item->add.tool.type == SHOVEL) {
 			if (player_payStamina(player, 4 - item->add.tool.level)) {
 				level_set_tile(level, xt, yt, DIRT, 0);
-				//TODO sounds Sound.monsterHurt.play();
+				sound_play(SND_MONSTERHURT); // Sound.monsterHurt.play()
 				Random* random = &tiles[id].random;
 
 				if (random_next_int(random, 5) == 0) {
@@ -39,7 +41,7 @@ char grasstile_interact(TileID id, Level* level, int xt, int yt, Player* player,
 
 		if (item->add.tool.type == HOE) {
 			if (player_payStamina(player, 4 - item->add.tool.level)) {
-				// TODO sounds Sound.monsterHurt.play();
+				sound_play(SND_MONSTERHURT); // Sound.monsterHurt.play()
 				Random* random = &tiles[id].random;
 
 				if (random_next_int(random, 5) == 0) {

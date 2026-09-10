@@ -7,6 +7,7 @@
 #include "../level/level.h"
 
 struct _Item;
+struct _ItemEntity;
 
 typedef struct _Player{
 	Mob mob;
@@ -37,5 +38,11 @@ void player_doHurt(Player* player, int damage, int attackDir);
 void player_die(Player* mob);
 void player_gameWon(Player* player);
 void player_free(Player* player);
+
+/* Virtual overrides (declared for the vtable; mirror Player.java) */
+char player_canSwim(Player* player);
+void player_touchItem(Player* player, struct _ItemEntity* item);
+void player_touchedBy(Player* player, Entity* entity);
+int  player_getLightRadius(Player* player);
 
 #endif // PLAYER_H

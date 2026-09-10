@@ -1,10 +1,43 @@
 #include "itementity.h"
-#include "_entity_caller.h"
 #include "../gfx/color.h"
+#include "../sound/sound.h"
+
+/* Java: ItemEntity.touchedBy(entity) { if (time > 30) entity.touchItem(this); } */
+void itementity_touchedBy(ItemEntity* item, Entity* entity) {
+	if (item->time > 30) {
+		entity->vt->touchItem(entity, item);
+	}
+}
+
+/* Java: ItemEntity.isBlockableBy(Mob mob) { return false; } */
+char itementity_isBlockableBy(ItemEntity* item, Mob* mob) {
+	(void) item; (void) mob;
+	return 0;
+}
+
+/* The ItemEntity vtable (= the Java `ItemEntity` class). */
+static const EntityVTable itementity_vtable = {
+	.tick           = (vt_tick_fn) itementity_tick,
+	.render         = (vt_render_fn) itementity_render,
+	.blocks         = entity_blocks,
+	.hurt           = entity_hurt,
+	.hurtTile       = entity_hurtTile,
+	.touchedBy      = (vt_touchedBy_fn) itementity_touchedBy,
+	.isBlockableBy  = (vt_isBlockableBy_fn) itementity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = entity_die,
+	.doHurt         = entity_doHurt,
+	.isSwimming     = entity_isSwimming,
+	.free           = entity_free,
+};
 
 
 void itementity_create(ItemEntity* entity, Item item, int x, int y){
 	entity_create(&entity->entity);
+	entity->entity.vt = &itementity_vtable;
 
 	entity->entity.type = ITEMENTITY;
 	entity->walkDist = 0;
@@ -80,7 +113,7 @@ void itementity_render(ItemEntity* item, Screen* screen){
 
 
 void itementity_take(ItemEntity* item, Player* player){
-	// TODO Sound.pickup.play();
+	sound_play(SND_PICKUP); // Sound.pickup.play()
 
 	++player->score;
 	item_onTake(&item->item, (struct _ItemEntity *) item);

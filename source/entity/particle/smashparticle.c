@@ -1,16 +1,36 @@
 #include "smashparticle.h"
-#include "../_entity_caller.h"
 #include "../../gfx/color.h"
+#include "../../sound/sound.h"
+
+/* The SmashParticle vtable (= the Java `SmashParticle` class). */
+static const EntityVTable smashparticle_vtable = {
+	.tick           = (vt_tick_fn) smashparticle_tick,
+	.render         = (vt_render_fn) smashparticle_render,
+	.blocks         = entity_blocks,
+	.hurt           = entity_hurt,
+	.hurtTile       = entity_hurtTile,
+	.touchedBy      = entity_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = entity_die,
+	.doHurt         = entity_doHurt,
+	.isSwimming     = entity_isSwimming,
+	.free           = entity_free,
+};
 
 
 void smashparticle_create(SmashParticle* particle, int x, int y){
 	entity_create(&particle->entity);
+	particle->entity.vt = &smashparticle_vtable;
 
 	particle->entity.type = SMASHPARTICLE;
 	particle->time = 0;
 	particle->entity.x = x;
 	particle->entity.y = y;
-	// TODO Sound.mosterHurt.play();
+	sound_play(SND_MONSTERHURT); // Sound.monsterHurt.play()
 }
 
 

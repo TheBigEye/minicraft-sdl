@@ -3,7 +3,7 @@
 #include "entity.h"
 #include "../item/item.h"
 
-typedef struct{
+typedef struct _ItemEntity{
 	Entity entity;
 	int lifeTime;
 	int walkDist;
@@ -21,5 +21,6 @@ void itementity_render(ItemEntity* item, Screen* screen);
 void itementity_tick(ItemEntity* item);
 void itementity_touchedBy(ItemEntity* item, Entity* entity);
 void itementity_take(ItemEntity* item, Player* player);
+char itementity_isBlockableBy(ItemEntity* item, struct _Mob* mob);
 
 #endif // ITEMENTITY_H

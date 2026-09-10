@@ -1,4 +1,6 @@
 #include "tile.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "../../item/resource/resource.h"
 #include "../../gfx/color.h"
 #include "../../gfx/color.h"

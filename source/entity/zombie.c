@@ -1,5 +1,5 @@
 #include "../gfx/screen.h"
-#include "_entity_caller.h"
+#include <stdlib.h>
 #include "zombie.h"
 #include "itementity.h"
 #include "../item/resourceitem.h"
@@ -7,9 +7,29 @@
 #include "../game.h"
 #include "../gfx/color.h"
 
+/* The Zombie vtable (= the Java `Zombie` class). */
+static const EntityVTable zombie_vtable = {
+	.tick           = (vt_tick_fn) zombie_tick,
+	.render         = (vt_render_fn) zombie_render,
+	.blocks         = (vt_blocks_fn) mob_blocks,
+	.hurt           = (vt_hurt_fn) mob_hurt,
+	.hurtTile       = (vt_hurtTile_fn) mob_hurtTile,
+	.touchedBy      = (vt_touchedBy_fn) zombie_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = (vt_die_fn) zombie_die,
+	.doHurt         = (vt_doHurt_fn) mob_doHurt,
+	.isSwimming     = (vt_isSwimming_fn) mob_isSwimming,
+	.free           = entity_free,
+};
+
 
 void zombie_create(Zombie* zombie, int lvl){
 	mob_create(&zombie->mob);
+	zombie->mob.entity.vt = &zombie_vtable;
 
 	zombie->mob.entity.type = ZOMBIE;
 	zombie->lvl = lvl;
@@ -88,7 +108,7 @@ void zombie_render(Zombie* zombie, Screen* screen) {
 
 void zombie_touchedBy(Zombie* zombie, Entity* entity) {
 	if (entity->type == PLAYER) {
-		call_entity_hurt(entity, &zombie->mob, zombie->lvl + 1, zombie->mob.dir);
+		entity->vt->hurt(entity, &zombie->mob, zombie->lvl + 1, zombie->mob.dir);
 	}
 }
 

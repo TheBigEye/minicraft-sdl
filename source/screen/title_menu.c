@@ -4,7 +4,9 @@
 #include "../gfx/color.h"
 #include "../gfx/font.h"
 #include "../game.h"
+#include "../sound/sound.h"
 
+#include <stdio.h>
 #include <string.h>
 
 char start_game[] = "Start game";
@@ -78,7 +80,7 @@ void titlemenu_tick() {
 
 	if (attack.clicked || menu.clicked) {
 		if (titlemenu_selected == 0) {
-			// TODO: Sound.test.play();
+			sound_play(SND_TEST); // Sound.test.play()
 			isingame = 1;
 			game_reset();
 			game_set_menu(0);

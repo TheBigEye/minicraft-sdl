@@ -18,12 +18,18 @@ typedef struct _Mob{
 	int tickTime;
 } Mob;
 
+/* Mob's vtable (the Java `Mob` class); subclass vtables inherit these entries. */
+extern const EntityVTable mob_vtable;
+
+/* The C equivalent of Java's `e instanceof Mob`. */
+char entity_ismob(Entity* entity);
+
 void mob_create(Mob* mob);
 void mob_tick(Mob* mob);
 void mob_die(Mob* mob);
 uint8_t mob_move(Mob* mob, int xa, int ya);
 uint8_t mob_isSwimming(Mob* mob);
-uint8_t mob_blocks(Mob* mob, Entity* entity);
+char mob_blocks(Mob* mob, Entity* entity);
 void mob_heal(Mob* mob, int heal);
 void mob_doHurt(Mob* mob, int damage, int attackDir);
 char mob_findStartPos(Mob* mob, struct _Level* level);

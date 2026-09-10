@@ -17,5 +17,6 @@ typedef struct _Spark{
 void spark_create(Spark* spark, struct _AirWizard* owner, double xa, double ya);
 void spark_tick(Spark* spark);
 void spark_render(Spark* spark,struct _Screen* screen);
+char spark_isBlockableBy(Spark* spark, struct _Mob* mob);
 
 #endif // SPARK_H

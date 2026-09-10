@@ -1,6 +1,5 @@
 #include "entity.h"
-
-#include "_entity_caller.h"
+#include <stdio.h>
 
 #include "player.h"
 
@@ -10,6 +9,7 @@
 
 
 void entity_create(Entity* entity) {
+	entity->vt = &entity_vtable; /* subclasses override with their own vtable */
 	entity->x = entity->y = 0;
 	entity->xr = entity->yr = 6;
 	entity->removed = 0;
@@ -23,24 +23,120 @@ uint8_t entity_interact(Entity* entity, Player* player, Item* item, int attackDi
 }
 
 
-uint8_t entity_canSwim(Entity* entity) {
-	return 0;
-}
-
-
-void entity_render(Entity* entity, Screen* screen) {
-	// Useless here
-}
-
-
 void entity_remove(Entity* entity) {
 	entity->removed = 1;
 }
 
 
-int entity_getLightRadius(Entity* entity) {
+/* ------------------------------------------------------------------ */
+/* Default virtual implementations - the Java Entity base class body. */
+/* ------------------------------------------------------------------ */
+
+void entity_tick(Entity* entity) {
+	/* public void tick() {} */
+	(void) entity;
+}
+
+void entity_render(Entity* entity, Screen* screen) {
+	/* public void render(Screen screen) {} */
+	(void) entity;
+	(void) screen;
+}
+
+char entity_blocks(Entity* entity, Entity* other) {
+	/* public boolean blocks(Entity e) { return false; } */
+	(void) entity;
+	(void) other;
 	return 0;
 }
+
+void entity_hurt(Entity* entity, Mob* source, int dmg, int attackDir) {
+	/* public void hurt(Mob mob, int dmg, int attackDir) {} */
+	(void) entity; (void) source; (void) dmg; (void) attackDir;
+}
+
+void entity_hurtTile(Entity* entity, TileID tile, int x, int y, int dmg) {
+	/* public void hurt(Tile tile, int x, int y, int dmg) {} */
+	(void) entity; (void) tile; (void) x; (void) y; (void) dmg;
+}
+
+void entity_touchedBy(Entity* entity, Entity* other) {
+	/* protected void touchedBy(Entity entity) {} */
+	(void) entity;
+	(void) other;
+}
+
+char entity_isBlockableBy(Entity* entity, Mob* mob) {
+	/* public boolean isBlockableBy(Mob mob) { return true; } */
+	(void) entity;
+	(void) mob;
+	return 1;
+}
+
+void entity_touchItem(Entity* entity, struct _ItemEntity* item) {
+	/* public void touchItem(ItemEntity itemEntity) {} */
+	(void) entity;
+	(void) item;
+}
+
+char entity_canSwim(Entity* entity) {
+	/* public boolean canSwim() { return false; } */
+	(void) entity;
+	return 0;
+}
+
+char entity_use(Entity* entity, Player* player, int attackDir) {
+	/* public boolean use(Player player, int attackDir) { return false; } */
+	(void) entity; (void) player; (void) attackDir;
+	return 0;
+}
+
+int entity_getLightRadius(Entity* entity) {
+	/* public int getLightRadius() { return 0; } */
+	(void) entity;
+	return 0;
+}
+
+void entity_die(Entity* entity) {
+	/* Only Mobs can die in the original; keep the old diagnostic. */
+	printf("Tried dying undyable entity (wat)! %d\n", entity->type);
+}
+
+void entity_doHurt(Entity* entity, int damage, int attackDir) {
+	/* Only Mobs can be hurt in the original; keep the old diagnostic. */
+	(void) damage; (void) attackDir;
+	printf("Tried hurting unhurtable entity! %d\n", entity->type);
+}
+
+char entity_isSwimming(Entity* entity) {
+	/* Mob-only method; non-mobs never swim. */
+	(void) entity;
+	return 0;
+}
+
+void entity_free(Entity* entity) {
+	/* C-specific: default entities own no heap resources. */
+	(void) entity;
+}
+
+/* The base vtable (= the Java `Entity` class). */
+const EntityVTable entity_vtable = {
+	.tick           = entity_tick,
+	.render         = entity_render,
+	.blocks         = entity_blocks,
+	.hurt           = entity_hurt,
+	.hurtTile       = entity_hurtTile,
+	.touchedBy      = entity_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = entity_die,
+	.doHurt         = entity_doHurt,
+	.isSwimming     = entity_isSwimming,
+	.free           = entity_free,
+};
 
 
 void entity_init(Entity* entity, Level* level) {
@@ -103,7 +199,7 @@ uint8_t entity_move2(Entity* entity, int xa, int ya) {
 	for (int i = 0; i < isInside.size; ++i) {
 		Entity* e = isInside.elements[i];
 		if (e == entity) continue;
-		call_entity_touchedBy(e, entity);
+		e->vt->touchedBy(e, entity);   /* Java: e.touchedBy(this) */
 	}
 
 	for (int j = 0; j < wasInside.size; ++j) {
@@ -123,7 +219,7 @@ uint8_t entity_move2(Entity* entity, int xa, int ya) {
 		Entity* e = isInside.elements[i];
 		if (e == entity) continue;
 
-		if (call_entity_blocks(e, entity)) {
+		if (e->vt->blocks(e, entity)) {   /* Java: e.blocks(this) */
 			arraylist_remove(&isInside);
 			return 0;
 		}

@@ -1,4 +1,7 @@
 #include "crafting/crafting.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "gfx/spritesheet.h"
 #include "gfx/font.h"
 
@@ -23,9 +26,9 @@
 #include "level/levelgen/levelgen.h"
 #include "gfx/color.h"
 #include "entity/player.h"
-#include "entity/_entity_caller.h"
 #include "item/item.h"
-#include "icons.h"
+#include "extern/icons_data.h"
+#include "sound/sound.h"
 
 // Helper: print available SDL video drivers (useful for embedded / RISC-V / no-X11 systems)
 static void print_sdl_video_drivers(void) {
@@ -174,7 +177,7 @@ void game_reset() {
 	level_init(game_levels + 0, 128, 128, -3, game_levels + 1);
 
 	if (game_player) {
-		call_entity_free(&game_player->mob.entity);
+		game_player->mob.entity.vt->free(&game_player->mob.entity);
 		free(game_player);
 	}
 
@@ -493,6 +496,10 @@ int main(int argc, char** argv) {
 		goto QUIT;
 	}
 
+	// Initialize audio (embedded WAVs + software mixer).
+	// Never fatal: if there's no audio device the game just runs silently.
+	sound_init();
+
 #ifdef USE_SDL1
 	/* SDL 1.2: use SDL_SetVideoMode */
 	window = SDL_SetVideoMode(winWidth, winHeight, 32, SDL_SWSURFACE | SDL_DOUBLEBUF);
@@ -750,6 +757,7 @@ int main(int argc, char** argv) {
 	if (prevBuf) free(prevBuf);
 
 	// Close SDL and free EVERYTHING
+	sound_quit();
 	SDL_Quit();
 	crafting_free();
 	delete_screen(&game_screen);
@@ -761,7 +769,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (game_player) {
-		call_entity_free(&game_player->mob.entity);
+		game_player->mob.entity.vt->free(&game_player->mob.entity);
 		free(game_player);
 	}
 

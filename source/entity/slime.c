@@ -1,4 +1,6 @@
 #include "slime.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "mob.h"
 #include "../game.h"
 #include "itementity.h"
@@ -6,11 +8,30 @@
 #include "../item/resource/resource.h"
 #include "../gfx/screen.h"
 #include "../gfx/color.h"
-#include "_entity_caller.h"
+
+/* The Slime vtable (= the Java `Slime` class). */
+static const EntityVTable slime_vtable = {
+	.tick           = (vt_tick_fn) slime_tick,
+	.render         = (vt_render_fn) slime_render,
+	.blocks         = (vt_blocks_fn) mob_blocks,
+	.hurt           = (vt_hurt_fn) mob_hurt,
+	.hurtTile       = (vt_hurtTile_fn) mob_hurtTile,
+	.touchedBy      = (vt_touchedBy_fn) slime_touchedBy,
+	.isBlockableBy  = entity_isBlockableBy,
+	.touchItem      = entity_touchItem,
+	.canSwim        = entity_canSwim,
+	.use            = entity_use,
+	.getLightRadius = entity_getLightRadius,
+	.die            = (vt_die_fn) slime_die,
+	.doHurt         = (vt_doHurt_fn) mob_doHurt,
+	.isSwimming     = (vt_isSwimming_fn) mob_isSwimming,
+	.free           = entity_free,
+};
 
 
 void slime_create(Slime* slime, int lvl) {
 	mob_create(&slime->mob);
+	slime->mob.entity.vt = &slime_vtable;
 
 	if (lvl <= 0) printf("WAT\n");
 
@@ -121,6 +142,6 @@ void slime_render(Slime* slime, Screen* screen){
 
 void slime_touchedBy(Slime* slime, struct _Entity* entity) {
 	if (entity->type == PLAYER) {
-		call_entity_hurt(entity, &slime->mob, slime->lvl, slime->mob.dir);
+		entity->vt->hurt(entity, &slime->mob, slime->lvl, slime->mob.dir);
 	}
 }
