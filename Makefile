@@ -224,16 +224,35 @@ vsc_sp := $(vsc_empty) $(vsc_empty)
 vsc_list = $(subst @,,$(subst @$(vsc_sp),$(comma)$(vsc_sp),$(strip $(foreach i,$(strip $1),"$(subst \,/,$i)"@))))
 
 # --- compiler detection -----------------------------------------------------
-ifeq ($(OS),Windows_NT)
-    VSC_CC      := $(subst \,/,$(firstword $(shell where $(firstword $(CC)) 2>nul)))
-    VSC_GDB     := $(subst \,/,$(firstword $(shell where gdb 2>nul)))
-    VSC_NULLDEV := nul
-    VSC_OSNAME  := Windows
+# NOTE: everything that shells out below is guarded by MAKECMDGOALS on
+# purpose. These assignments run at parse time, so an unguarded $(shell)
+# would execute on every make invocation (`make clean` included).
+# The redirects also depend on which shell make uses for $(shell): POSIX
+# sh syntax (`2>/dev/null`) would create a literal file named "nul" under
+# cmd.exe, and cmd syntax (`2>nul`) would create one under sh - so pick
+# per shell. (make picks sh.exe when it is in PATH, cmd.exe otherwise.)
+ifneq ($(filter sh sh.exe bash bash.exe dash,$(notdir $(SHELL))),)
+    VSC_POSIX_SHELL := 1
 else
-    VSC_CC      := $(shell command -v $(firstword $(CC)) 2>/dev/null)
-    VSC_GDB     := $(shell command -v gdb 2>/dev/null)
-    VSC_NULLDEV := /dev/null
-    VSC_OSNAME  := Linux
+    VSC_POSIX_SHELL :=
+endif
+
+ifeq ($(filter vsconfig,$(MAKECMDGOALS)),vsconfig)
+    ifeq ($(VSC_POSIX_SHELL),1)
+        VSC_CC  := $(shell command -v $(firstword $(CC)) 2>/dev/null)
+        VSC_GDB := $(shell command -v gdb 2>/dev/null)
+        VSC_MKDIR_ERR := $(shell mkdir -p $(VSCODE_DIR) 2>&1)
+    else
+        VSC_CC  := $(subst \,/,$(firstword $(shell where $(firstword $(CC)) 2>nul)))
+        VSC_GDB := $(subst \,/,$(firstword $(shell where gdb 2>nul)))
+        VSC_MKDIR_ERR := $(shell if not exist "$(VSCODE_DIR)" mkdir "$(VSCODE_DIR)" 2>&1)
+    endif
+    # Target triple, e.g. x86_64-linux-gnu / i686-w64-mingw32 / riscv64-linux-gnu
+    VSC_TRIPLE := $(shell $(CC) -dumpmachine)
+    # System include dirs reported by the compiler itself. Empty input is
+    # piped via stdin so no null-device file argument is needed on any
+    # platform (an argument like `nul`/`/dev/null` is shell-dependent).
+    VSC_SYSINC := $(shell echo | $(CC) -E -Wp,-v -xc - 2>&1 | sed -n 's/^ \{1,\}\(.*\)/\1/p')
 endif
 ifeq ($(VSC_CC),)
     VSC_CC := $(firstword $(CC))
@@ -241,10 +260,12 @@ endif
 ifeq ($(VSC_GDB),)
     VSC_GDB := gdb
 endif
-
-# Target triple, e.g. x86_64-linux-gnu / i686-w64-mingw32 / riscv64-linux-gnu
-VSC_TRIPLE := $(shell $(CC) -dumpmachine 2>/dev/null)
-VSC_ARCH   := $(firstword $(subst -, ,$(VSC_TRIPLE)))
+ifeq ($(OS),Windows_NT)
+    VSC_OSNAME := Windows
+else
+    VSC_OSNAME := Linux
+endif
+VSC_ARCH := $(firstword $(subst -, ,$(VSC_TRIPLE)))
 
 # --- intelliSenseMode from OS + arch ----------------------------------------
 ifeq ($(OS),Windows_NT)
@@ -264,8 +285,6 @@ else
 endif
 
 # --- include dirs & defines of the ACTIVE configuration ---------------------
-# System includes reported by the compiler itself:
-VSC_SYSINC := $(shell $(CC) -E -Wp,-v -xc $(VSC_NULLDEV) 2>&1 | sed -n 's/^ \{1,\}\(.*\)/\1/p')
 # Extra -I flags (e.g. sdl-config --cflags with SDL=1):
 VSC_SDLINC := $(patsubst -I%,%,$(filter -I%,$(CFLAGS)))
 VSC_DEFINES := $(patsubst -D%,%,$(filter -D%,$(CFLAGS)))
@@ -274,18 +293,9 @@ VSC_ALLINC := $${workspaceFolder}/source $(VSC_SDLINC) $(VSC_SYSINC)
 
 VSC_CONFNAME := Minicraft-$(VSC_OSNAME)-SDL$(SDL)$(if $(filter 1,$(FB)),-FB)$(if $(filter 1,$(NO_AUDIO)),-NOAUDIO)$(if $(filter 1,$(DEBUG)),-DEBUG)
 
-# Create $(VSCODE_DIR) when the vsconfig target is requested.
-# NOTE: this runs at parse time on purpose - GNU Make expands a whole recipe
-# before executing its first line, so $(file > ...) below could never rely on
-# a mkdir recipe line. Guarded by MAKECMDGOALS so normal builds never touch it.
-VSC_MKDIR_ERR :=
-ifeq ($(filter vsconfig,$(MAKECMDGOALS)),vsconfig)
-    ifeq ($(OS),Windows_NT)
-        VSC_MKDIR_ERR := $(shell if not exist "$(VSCODE_DIR)" mkdir "$(VSCODE_DIR)" 2>&1)
-    else
-        VSC_MKDIR_ERR := $(shell mkdir -p $(VSCODE_DIR) 2>&1)
-    endif
-endif
+# $(VSCODE_DIR) is created at parse time by the guarded detection block
+# above (GNU Make expands a whole recipe before executing its first line,
+# so $(file > ...) could never rely on a mkdir recipe line).
 
 # --- JSON payloads ------------------------------------------------------------
 define VSCODE_CPROPS

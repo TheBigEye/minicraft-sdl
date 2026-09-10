@@ -105,6 +105,18 @@ Requires GNU Make ≥ 4.0.
 
 ---
 
+## Status & contributing
+
+This project is in **active development**. The goal is not only to keep the
+original game alive and building on modern (and not so modern) platforms, but
+also to expand it over time with new content and features, always respecting
+the style and spirit of the 2011 original.
+
+Any contribution is welcome: bug fixes, portability work, new features or
+documentation. Open an issue or a pull request and jump in.
+
+---
+
 ## Credits
 
 - **Markus "Notch" Persson**, the original *Minicraft* for Ludum Dare 22.
