@@ -1,3 +1,10 @@
+/*
+ * furniture.c - Furniture base class (Java: entity.Furniture).
+ *
+ * Placeable stationary entities: crafting stations, chests and
+ * lanterns. They block movement, render one sprite and can be
+ * picked up again (power glove) into a furniture item.
+ */
 #include "furniture.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +23,7 @@
 #include "workbench.h"
 
 /* Java: Furniture.blocks(Entity e) { return true; } */
+/* Furniture always blocks other entities, as in Java. */
 char furniture_blocks(Furniture* furniture, Entity* other) {
 	(void) furniture; (void) other;
 	return 1;
@@ -41,6 +49,7 @@ const EntityVTable furniture_vtable = {
 	.free           = (vt_free_fn) furniture_free,
 };
 
+/* Class-tag test for the six furniture subclasses. */
 char entity_isfurniture(Entity* entity) {
 	/* The C equivalent of Java's `e instanceof Furniture` checks. */
 	switch (entity->type) {
@@ -91,6 +100,8 @@ Furniture* entity_createFurniture(EntityId id) {
 	return furn;
 }
 
+/* Creates an independent copy of a furniture instance; used when
+ * a furniture item is placed into the world. */
 Furniture* furniture_create_copy(Furniture* old) {
 	/* C-specific helper: deep-copies a furniture entity (chests copy their
 	 * inventory). Used when furniture is picked up with the power glove. */
@@ -130,6 +141,7 @@ Furniture* furniture_create_copy(Furniture* old) {
 	return copy;
 }
 
+/* Base initialization: display name copy, sprite and small box. */
 void furniture_create(Furniture* furniture, char* name){
 	entity_create((Entity *) furniture);
 	furniture->entity.vt = &furniture_vtable; /* subclasses override with their own vtable */
@@ -146,6 +158,7 @@ void furniture_create(Furniture* furniture, char* name){
 }
 
 
+/* Base furniture has no per-tick behavior. */
 void furniture_tick(Furniture* furniture){
 	if (furniture->shouldTake){
 		Item* item = furniture->shouldTake->activeItem;
@@ -172,6 +185,7 @@ void furniture_tick(Furniture* furniture){
 }
 
 
+/* Draws the furniture's single sprite at its position. */
 void furniture_render(Furniture* furniture, Screen* screen){
 	int x = furniture->entity.x;
 	int y = furniture->entity.y;
@@ -193,11 +207,13 @@ void furniture_touchedBy(Furniture* furniture, Entity* entity){
 }
 
 
+/* Pickup handling when the power glove grabs the furniture. */
 void furniture_take(Furniture* furniture, Player* player){
 	furniture->shouldTake = player;
 }
 
 
+/* Frees the heap-allocated display name. */
 void furniture_free(Furniture* furniture){
 	free(furniture->name);
 }

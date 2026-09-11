@@ -1,3 +1,6 @@
+/*
+ * won_menu.c - Victory screen behavior (Java: WonMenu).
+ */
 #include "won_menu.h"
 #include <stdio.h>
 #include "../gfx/screen.h"
@@ -23,6 +26,7 @@ void wonmenu_init(){
 }
 
 
+/* Draws the victory message with play time and score. */
 void wonmenu_render(Screen* screen) {
 	char msg[] = "You won! Yay!";
 	char timeString[256];
@@ -64,6 +68,7 @@ void wonmenu_render(Screen* screen) {
 }
 
 
+/* Ignores input for the first 60 ticks, then returns to the title. */
 void wonmenu_tick() {
 	if (inputDelay > 0) {
 		--inputDelay;

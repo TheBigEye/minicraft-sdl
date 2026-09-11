@@ -1,11 +1,17 @@
+/*
+ * stairs_tile.c - Stairs tile behavior (Java: tile.StairsTile).
+ */
 #include "tile.h"
 #include "../../gfx/color.h"
 
+/* Stores whether this staircase leads up or down. */
 void stairstile_init(TileID id, char leadsUp){
 	tile_init(id);
 	tiles[id].add.stairs.leadsUp = leadsUp;
 }
 
+/* Draws the four staircase quadrants, picking the up/down sprite set
+ * from the leadsUp flag. */
 void stairstile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int color = getColor4(level->dirtColor, 000, 333, 444);
 	int xt = tiles[id].add.stairs.leadsUp ? 2 : 0;

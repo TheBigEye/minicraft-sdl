@@ -1,3 +1,9 @@
+/*
+ * workbench.c - Workbench furniture (Java: com.mojang.ld22.entity.Workbench).
+ *
+ * The basic crafting station of the game; using it opens the
+ * crafting menu with the workbench recipe list (tools, furniture).
+ */
 #include "workbench.h"
 #include <stdlib.h>
 #include "../game.h"
@@ -27,6 +33,10 @@ static const EntityVTable workbench_vtable = {
 	.free           = (vt_free_fn) furniture_free,
 };
 
+/*
+ * Spawns a workbench: furniture named "Workbench", sprite 4, wooden
+ * palette and the small 3x2 collision box of crafting stations.
+ */
 void workbench_create(Workbench* workbench) {
 	char* name = malloc(strlen("Workbench") + 1); //XXX ew
 	strcpy(name, "Workbench");
@@ -42,6 +52,7 @@ void workbench_create(Workbench* workbench) {
 }
 
 
+/* Opens the crafting menu on the workbench recipe list; always succeeds. */
 char workbench_use(Workbench* workbench, struct _Player* player, int attackDir){
 	crmenu_recipes = &workbenchRecipes;
 	game_set_menu(mid_CRAFTING);

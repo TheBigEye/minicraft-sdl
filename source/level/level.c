@@ -1,3 +1,10 @@
+/*
+ * level.c - Level container and per-frame level work (Java: Level).
+ *
+ * Generation dispatch by depth, tile/data accessors, entity
+ * bookkeeping (list + per-tile buckets), sprite and light rendering
+ * and the per-tick update with mob spawning.
+ */
 #include "level.h"
 #include <string.h>
 #include <stdlib.h>
@@ -13,6 +20,12 @@
 #include "../utils/arraylist.h"
 
 
+/*
+ * Generates a level of the given depth: sky map for positive depth,
+ * surface map for 0 and underground maps (scaled by -depth) below.
+ * Stairs in the parent level become matching stairs here, ringed by
+ * hard rock (surface) or dirt (underground) so they stay reachable.
+ */
 void level_init(Level* lvl, int w, int h, int level, Level* parent) {
 	random_set_seed(&lvl->random, getTimeMS());
 	create_arraylist(&lvl->entities);
@@ -81,6 +94,8 @@ void level_init(Level* lvl, int w, int h, int level, Level* parent) {
 }
 
 
+/* Draws every tile inside the scroll window, row by row; each tile
+ * renders itself through its behavior's render hook. */
 void level_renderBackground(Level* level, Screen* screen, int xScroll, int yScroll) {
 	int xo = xScroll >> 4;
 	int yo = yScroll >> 4;
@@ -101,6 +116,8 @@ void level_renderBackground(Level* level, Screen* screen, int xScroll, int yScro
 }
 
 
+/* qsort comparator: painter's order by y so lower entities draw
+ * on top of higher ones. */
 int _cmpEnt(const void* ent, const void* ent2) {
 	Entity* e = *(Entity**) ent;
 	Entity* e2 = *(Entity**) ent2;
@@ -111,6 +128,7 @@ int _cmpEnt(const void* ent, const void* ent2) {
 }
 
 
+/* Sorts the visible entity list by y and renders them in order. */
 void level_sortAndRender(Level* level, Screen* screen, ArrayList* list) {
 	qsort(list->elements, list->size, sizeof(*list->elements), _cmpEnt);
 	for (int i = 0; i < list->size; ++i) {
@@ -119,6 +137,11 @@ void level_sortAndRender(Level* level, Screen* screen, ArrayList* list) {
 }
 
 
+/*
+ * Mob spawning (Java: Level.trySpawn): `count` attempts to place a
+ * random mob kind via mob_findStartPos, which enforces distance from
+ * the player and local density; successful finds are added here.
+ */
 void level_trySpawn(Level* level, int count){
 	Random* random = &level->random;
 
@@ -153,6 +176,8 @@ void level_trySpawn(Level* level, int count){
 }
 
 
+/* Collects the entities overlapping the view rectangle and draws
+ * them sorted, so sprites overlap correctly. */
 void level_renderSprites(Level* level, Screen* screen, int xScroll, int yScroll) {
 	ArrayList rowSprites;
 
@@ -191,6 +216,11 @@ void level_renderSprites(Level* level, Screen* screen, int xScroll, int yScroll)
 
 
 
+/*
+ * Lighting pass (the caves' fog-of-war): starts from a dark map,
+ * adds each entity's light radius and the player's, then dithers
+ * the result over the rendered screen.
+ */
 void renderLight(Level* level, Screen* screen, int xScroll, int yScroll) {
 	int xo = xScroll >> 4;
 	int yo = yScroll >> 4;
@@ -222,12 +252,15 @@ void renderLight(Level* level, Screen* screen, int xScroll, int yScroll) {
 }
 
 
+/* Tile id accessor; indices are tile coordinates. */
 extern inline unsigned char level_get_tile(Level* level, int x, int y){
 	if(x < 0 || y < 0 || x >= level->w || y >= level->h) return ROCK;
 	return level->tiles[x + y*level->w];
 }
 
 
+/* Replaces a tile and clears its data; neighbors are not notified
+ * (callers handle follow-up effects). */
 void level_set_tile(Level* level, int x, int y, int id, int data){
 	if(x < 0 || y < 0 || x >= level->w || y >= level->h) return;
 	level->tiles[x + y*level->w] = id;
@@ -235,24 +268,32 @@ void level_set_tile(Level* level, int x, int y, int id, int data){
 }
 
 
+/* Data byte accessor (wheat growth, ore kind, ...). */
 extern inline unsigned char level_get_data(Level* level, int x, int y){
 	if(x < 0 || y < 0 || x >= level->w || y >= level->h) return 0;
 	return level->data[x + y*level->w];
 }
 
 
+/* Sets a tile's data byte without touching its id. */
 void level_set_data(Level* level, int x, int y, int val){
 	if(x < 0 || y < 0 || x >= level->w || y >= level->h) return;
 	level->data[x + y*level->w] = val;
 }
 
 
+/* Adds the entity to the bucket of the tile under its center. */
 void level_insertEntity(Level* level, int x, int y, Entity* entity){
 	if(x < 0 || y < 0 || x >= level->w || y >= level->h) return;
 	arraylist_push(&level->entitiesInTiles[x+y*level->w], entity);
 }
 
 
+/*
+ * Adds an entity to the level: initializes it, appends it to the
+ * entity list and registers it in its tile bucket. The level takes
+ * ownership of the allocation from here on.
+ */
 void level_addEntity(Level* level, Entity* entity){
 	// TODO: if(e is player) level->player = e;
 
@@ -272,12 +313,16 @@ void level_removeEntity1(Level* level, Entity* e) {
 }
 
 
+/* Drops the entity from its tile bucket (list removal happens in
+ * level_tick when the removed flag is seen). */
 void level_removeEntity(Level* level, int x, int y, Entity* entity) {
 	if (x < 0 || y < 0 || x >= level->w || y >= level->h) return;
 	arraylist_removeElement(&level->entitiesInTiles[x+y*level->w], entity);
 }
 
 
+/* Appends every entity whose box intersects the pixel rectangle
+ * (x0, y0)-(x1, y1) to `list`; used by movement and interactions. */
 void level_getEntities(Level* level, ArrayList* list, int x0, int y0, int x1, int y1) {
 	int xt0 = (x0 >> 4) - 1;
 	int yt0 = (y0 >> 4) - 1;
@@ -300,6 +345,12 @@ void level_getEntities(Level* level, ArrayList* list, int x0, int y0, int x1, in
 }
 
 
+/*
+ * Per-tick level update (Java: Level.tick): ticks every entity,
+ * compacts the list by dropping removed ones (unregistering them
+ * from tile buckets and freeing them) and offers one mob spawn
+ * attempt, matching the original's spawn pacing.
+ */
 void level_tick(Level* level) {
 	level_trySpawn(level, 1);
 
@@ -339,6 +390,8 @@ void level_tick(Level* level) {
 }
 
 
+/* Releases every owned allocation: entity list, buckets, tiles and
+ * data. Entities themselves are freed by the caller's teardown. */
 void level_free(Level* lvl) {
 	if (lvl->tiles) free(lvl->tiles);
 	if (lvl->data) free(lvl->data);

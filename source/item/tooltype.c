@@ -1,3 +1,6 @@
+/*
+ * tooltype.c - Tool type helpers (Java: ToolType).
+ */
 #include "tooltype.h"
 #include <stdio.h>
 

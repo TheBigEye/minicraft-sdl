@@ -1,3 +1,7 @@
+/*
+ * instructions_menu.c - How-to-play menu behavior
+ * (Java: InstructionsScreen).
+ */
 #include "instructions_menu.h"
 #include "menu.h"
 #include "../gfx/font.h"
@@ -26,6 +30,7 @@ const menu_vt instructionsmenu_vt = {
 	&instructionsmenu_init
 };
 
+/* Any confirm returns to the parent menu. */
 void instructionsmenu_tick(){
 	if(attack.clicked || menu.clicked){
 		game_set_menu(menu_parent);
@@ -34,6 +39,7 @@ void instructionsmenu_tick(){
 void instructionsmenu_init(){
 
 }
+/* Draws the static instructions lines. */
 void instructionsmenu_render(Screen* screen){
 	clear_screen(screen, 0);
 	int col = getColor4(0, 333, 333, 333);

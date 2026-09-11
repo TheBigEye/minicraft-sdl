@@ -1,3 +1,12 @@
+/*
+ * entity.h - Base Entity type and the virtual method table that gives
+ *            the port its Java-style dynamic dispatch.
+ *
+ * Every drawable/interactive object of the world (mobs, furniture,
+ * dropped items, particles) starts with an Entity and therefore with a
+ * vtable pointer; subclasses live in their own files, one per original
+ * Java class.
+ */
 #ifndef ENTITY_H
 #define ENTITY_H
 

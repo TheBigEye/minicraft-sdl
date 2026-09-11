@@ -1,3 +1,9 @@
+/*
+ * cactus_tile.c - Cactus tile behavior (Java: tile.CactusTile).
+ *
+ * Damage taken is stored in the tile data and heals down each tick;
+ * enough damage breaks the cactus into cactus-flower drops.
+ */
 #include "tile.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,12 +14,14 @@
 #include "../../item/resourceitem.h"
 
 
+/* Registers the cactus connection flags and defaults. */
 void cactustile_init(TileID id) {
 	tile_init(id);
 	tiles[id].connectsToSand = 1;
 }
 
 
+/* Draws the cactus sprite over the sand background. */
 void cactustile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int col = getColor4(20, 40, 50, level->sandColor);
 
@@ -24,6 +32,8 @@ void cactustile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 }
 
 
+/* Adds damage to the tile data with smash/damage feedback; at 10 the
+ * cactus breaks into sand and drops 1-2 cactus flowers. */
 void cactus_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	int damage = level_get_data(level, x, y) + dmg;
 	Random* random = &tiles[id].random;
@@ -60,6 +70,7 @@ void cactus_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, in
 }
 
 
+/* Heals one point of accumulated damage per tick, if any. */
 void cactustile_tick(TileID id, Level* level, int xt, int yt) {
 	int damage = level_get_data(level, xt, yt);
 

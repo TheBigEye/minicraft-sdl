@@ -1,3 +1,6 @@
+/*
+ * flower_tile.c - Flower tile behavior (Java: tile.FlowerTile).
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../../item/resourceitem.h"
@@ -6,12 +9,15 @@
 #include "../../item/item.h"
 #include "../../gfx/color.h"
 
+/* Registers the flower connection flags; the variant shape comes
+ * from the tile data at render time. */
 void flowertile_init(TileID id){
 	tile_init(id);
 	tiles[id].connectsToGrass = 1;
 }
 
 
+/* Draws flowers scattered over the grass background. */
 void flowertile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	tile_render(GRASS, screen, level, x, y);
 
@@ -27,6 +33,7 @@ void flowertile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 
 }
 
+/* Any tool swing clears the flowers and drops a flower item. */
 char flowertile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if(item->id == TOOL){
 		if(item->add.tool.type == SHOVEL){
@@ -50,6 +57,7 @@ char flowertile_interact(TileID id, Level* level, int xt, int yt, Player* player
 }
 
 
+/* Attacking the tile also clears it into a flower item. */
 void flowertile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
 	Random* random = &tiles[id].random;
 	int count = random_next_int(random, 2) + 1;

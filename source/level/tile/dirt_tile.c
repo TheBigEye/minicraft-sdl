@@ -1,3 +1,6 @@
+/*
+ * dirt_tile.c - Dirt tile behavior (Java: tile.DirtTile).
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../../gfx/color.h"
@@ -8,6 +11,8 @@
 #include "../../entity/itementity.h"
 #include "../../sound/sound.h"
 
+/* Shovel digs a hole, hoe tills farmland; both cost stamina and may
+ * drop seeds, mirroring the original. */
 char dirttile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if(item->id == TOOL){
 		if(item->add.tool.type == SHOVEL){
@@ -35,6 +40,7 @@ char dirttile_interact(TileID id, Level* level, int xt, int yt, Player* player, 
 	return 0;
 }
 
+/* Draws the four-quadrant dirt sprite in the level's dirt palette. */
 void dirttile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	int col = getColor4(level->dirtColor, level->dirtColor, level->dirtColor - 111, level->dirtColor - 111);
 

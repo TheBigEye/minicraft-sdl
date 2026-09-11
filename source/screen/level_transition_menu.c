@@ -1,3 +1,7 @@
+/*
+ * level_transition_menu.c - Level transition behavior
+ * (Java: LevelTransitionMenu).
+ */
 #include "menu.h"
 #include "level_transition_menu.h"
 #include "../gfx/font.h"
@@ -12,13 +16,14 @@ const menu_vt leveltransitionmenu_vt = {
 	&leveltransitionmenu_init
 };
 
-static int lt_time;
-static int lt_dir;
+static int lt_time; /* Frames elapsed since the wipe started. */
+static int lt_dir;  /* Pending depth change (direction of stairs). */
 
 void leveltransitionmenu_init(){
 	lt_time = 0;
 	lt_dir = game_pendingLevelChange;
 }
+/* Draws a diagonal wipe of black tiles sweeping across the screen. */
 void leveltransitionmenu_render(Screen* screen){
 	for(int x = 0; x < 40; ++x){
 		for(int y = 0; y < 30; ++y){
@@ -28,6 +33,7 @@ void leveltransitionmenu_render(Screen* screen){
 		}
 	}
 }
+/* Swaps the level at the halfway point and closes at the end. */
 void leveltransitionmenu_tick(){
 	lt_time += 2;
 	if(lt_time == 30) game_changeLevel(lt_dir);

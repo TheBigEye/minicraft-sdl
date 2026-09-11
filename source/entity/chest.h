@@ -1,3 +1,7 @@
+/*
+ * chest.h - Chest furniture: a placeable container with its own
+ *           inventory that persists in the world.
+ */
 #ifndef CHEST_H
 #define CHEST_H
 #include "furniture.h"

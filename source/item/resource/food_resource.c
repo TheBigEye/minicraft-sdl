@@ -1,5 +1,9 @@
+/*
+ * food_resource.c - Edible resource initializer (Java: FoodResource).
+ */
 #include "resource.h"
 
+/* Fills the common fields then the food-specific heal/stamina data. */
 void init_food_resource(Resource* resource, char* name, int sprite, int color, int heal, int staminaCost) {
 	init_resource(resource, name, sprite, color);
 	resource->add.food.heal = heal;

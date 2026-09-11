@@ -1,3 +1,7 @@
+/*
+ * inventory_menu.h - Inventory menu (Java: InventoryMenu): browse
+ *                    and equip carried items.
+ */
 #ifndef INVENTORY_MENU_H
 #define INVENTORY_MENU_H
 

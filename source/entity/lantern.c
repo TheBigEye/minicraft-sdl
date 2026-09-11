@@ -1,3 +1,9 @@
+/*
+ * lantern.c - Lantern furniture (Java: com.mojang.ld22.entity.Lantern).
+ *
+ * A placeable light source: its only addition over plain Furniture
+ * is a light radius of 8, lighting caves and night around it.
+ */
 #include "lantern.h"
 #include <stdlib.h>
 #include "../gfx/color.h"
@@ -29,6 +35,10 @@ static const EntityVTable lantern_vtable = {
 	.free           = (vt_free_fn) furniture_free,
 };
 
+/*
+ * Spawns a lantern: furniture named "Lantern", sprite 5 and a bright
+ * yellow palette; light radius comes from the vtable override.
+ */
 void lantern_create(Lantern* lantern){
 	char* name = malloc(strlen("Lantern") + 1); //XXX ew
 	strcpy(name, "Lantern");

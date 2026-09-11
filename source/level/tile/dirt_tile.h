@@ -1,3 +1,7 @@
+/*
+ * dirt_tile.h - Dirt tile: the underground's surface; shovel turns it
+ *               into a hole, hoe into farmland.
+ */
 #ifndef LEVEL_TILE_DIRT_TILE_H_
 #define LEVEL_TILE_DIRT_TILE_H_
 
@@ -7,6 +11,7 @@ struct _Item;
 struct _Player;
 
 void dirttile_render(TileID id, Screen* screen, Level* level, int x, int y);
+/* Shovel/hoe interaction; costs stamina and plays the dig sound. */
 char dirttile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
 
 #endif /* LEVEL_TILE_CLOUD_TILE_H_ */

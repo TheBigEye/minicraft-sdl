@@ -1,8 +1,12 @@
+/*
+ * farmland.c - Farmland tile behavior (Java: tile.FarmTile).
+ */
 #include "tile.h"
 #include "../../gfx/color.h"
 #include "../../entity/player.h"
 #include "../../item/item.h"
 
+/* Draws tilled soil with its furrow pattern. */
 void farmlandtile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	int col = getColor4(level->dirtColor - 121, level->dirtColor - 11, level->dirtColor, level->dirtColor + 111);
 
@@ -12,6 +16,7 @@ void farmlandtile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	render_screen(screen, x*16 + 8, y * 16 + 8, 2 + 32, col, 1);
 }
 
+/* Shovel reverts farmland to dirt; other tools do nothing here. */
 char farmtile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if(item->id == TOOL){
 		if(item->add.tool.type == SHOVEL){
@@ -24,6 +29,7 @@ char farmtile_interact(TileID id, Level* level, int xt, int yt, Player* player, 
 	return 0;
 }
 
+/* Ages the soil data byte up to 5 (visual/hydration stages). */
 void farmland_tick(TileID id, Level* level, int xt, int yt) {
 	int age = level_get_data(level, xt, yt);
 	if(age < 5) level_set_data(level, xt, yt, age + 1);

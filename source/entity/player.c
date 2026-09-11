@@ -1,3 +1,10 @@
+/*
+ * player.c - The player character (Java: Player class body).
+ *
+ * Input-driven movement, stamina economy, the three interaction boxes
+ * (attack / use / interact), swimming, stair transitions and the sprite
+ * composition (walk cycle, swim overlay, swing arcs, carried furniture).
+ */
 #include "mob.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +50,12 @@ static const EntityVTable player_vtable = {
 	.free           = (vt_free_fn) player_free,
 };
 
+/*
+ * Creates the player: base mob init, 10 stamina, empty inventory plus
+ * the two starting items of the original game (a workbench furniture
+ * item and the power glove). TEST_INVENTORY builds stuff the inventory
+ * with every item type for debugging.
+ */
 void player_create(Player* player) {
 	mob_create(&player->mob);
 	player->mob.entity.vt = &player_vtable;
@@ -130,6 +143,7 @@ void player_create(Player* player) {
 }
 
 
+/* Attack damage dealt to `e`: 1-3 random plus the held item's bonus. */
 int player_getAttackDamage(Player* player, Entity* e) {
 	int dmg = random_next_int(&player->mob.entity.random, 3) + 1;
 	if (player->attackItem) {
@@ -139,6 +153,7 @@ int player_getAttackDamage(Player* player, Entity* e) {
 }
 
 
+/* Players can always swim (Java: canSwim() { return true; }). */
 char player_canSwim(Player* player) {
 	/* Java: public boolean canSwim() { return true; } */
 	(void) player;
@@ -146,6 +161,8 @@ char player_canSwim(Player* player) {
 }
 
 
+/* Walking over an item entity takes it and stores it in the inventory
+ * (Java: touchItem -> itemEntity.take(this); inventory.add(...)). */
 void player_touchItem(Player* player, ItemEntity* item) {
 	/* Java: public void touchItem(ItemEntity itemEntity) {
 	 *           itemEntity.take(this);
@@ -156,6 +173,8 @@ void player_touchItem(Player* player, ItemEntity* item) {
 }
 
 
+/* When a non-player entity touches the player, the notification is
+ * bounced back to that entity (Java: touchedBy). */
 void player_touchedBy(Player* player, Entity* entity) {
 	/* Java: protected void touchedBy(Entity entity) {
 	 *           if (!(entity instanceof Player)) entity.touchedBy(this);
@@ -166,6 +185,8 @@ void player_touchedBy(Player* player, Entity* entity) {
 }
 
 
+/* Light emitted by the player: 2 by itself, or the carried furniture's
+ * radius when holding something that shines (e.g. a lantern). */
 int player_getLightRadius(Player* player) {
 	/* Java: public int getLightRadius() {
 	 *           int r = 2;
@@ -185,6 +206,8 @@ int player_getLightRadius(Player* player) {
 }
 
 
+/* Hurts every entity (except the player) inside the attack box, using
+ * the player's current attack damage and swing direction. */
 void player_hurt(Player* player, int x0, int y0, int x1, int y1) {
 	ArrayList entities;
 	create_arraylist(&entities);
@@ -201,6 +224,8 @@ void player_hurt(Player* player, int x0, int y0, int x1, int y1) {
 }
 
 
+/* Offers the active item to every entity in the box via interact();
+ * stops at the first entity that accepts it. */
 char player_interact(Player* player, int x0, int y0, int x1, int y1) {
 	ArrayList entities;
 	create_arraylist(&entities);
@@ -221,6 +246,14 @@ char player_interact(Player* player, int x0, int y0, int x1, int y1) {
 }
 
 
+/*
+ * The attack action (Java: Player.attack). With an item held, first
+ * tries interact() on entities in the facing box, then the item's and
+ * the tile's own interact hooks in front of the player; depleted items
+ * (broken tools) are freed. If nothing accepted the swing, it becomes
+ * a plain attack: entities in a wider box take damage and the tile in
+ * front is hurt (mining/hitting).
+ */
 void player_attack(Player* player){
 	player->mob.walkDist += 8;
 	player->attackDir = player->mob.dir;
@@ -306,6 +339,12 @@ void player_attack(Player* player){
 }
 
 
+/*
+ * Damage received by the player (Java: Player.doHurt): ignored while
+ * hurt or invulnerable; otherwise plays the hurt sound, shows a damage
+ * number, subtracts health, applies knockback and opens both the short
+ * hurt window (10 ticks) and the longer invulnerability one (30).
+ */
 void player_doHurt(Player* player, int damage, int attackDir){
 	if (player->mob.hurtTime > 0 || player->invulnerableTime > 0) {
         return;
@@ -332,12 +371,15 @@ void player_doHurt(Player* player, int damage, int attackDir){
 }
 
 
+/* Player death: base mob removal plus the death sound. */
 void player_die(Player* player){
 	mob_die(&player->mob);
 	sound_play(SND_PLAYERDEATH); // Sound.playerDeath.play()
 }
 
 
+/* Offers use() to every entity in the box (furniture, ...); first
+ * entity that accepts wins, mirroring Java's Player.use(x0,y0,x1,y1). */
 char player_usexy(Player* player, int x0, int y0, int x1, int y1) {
 	ArrayList entities;
 	create_arraylist(&entities);
@@ -358,6 +400,11 @@ char player_usexy(Player* player, int x0, int y0, int x1, int y1) {
 }
 
 
+/*
+ * The menu/use key action: tries use() on entities in the facing box,
+ * then tile_use() on the tile in front (doors, stairs, ...). Returns
+ * whether anything happened; the caller opens the inventory otherwise.
+ */
 char player_use_(Player* player) {
 	int yo = -2;
 	int x = player->mob.entity.x;
@@ -389,12 +436,21 @@ char player_use_(Player* player) {
 }
 
 
+/* Called when the Air Wizard dies: makes the player invulnerable for
+ * the win jingle and starts the win sequence. */
 void player_gameWon(Player* player){
 	player->invulnerableTime = 60*5;
 	game_won();
 }
 
 
+/*
+ * Per-tick player update (Java: Player.tick): base mob tick, stair
+ * detection (standing on stairs queues a level change after a short
+ * delay), stamina recharge with its delay and the swim pause, input
+ * driven movement (halved while the recharge delay runs), swimming
+ * stamina drain with drowning damage, and the attack/menu keys.
+ */
 void player_tick(Player* player){
 	mob_tick(&player->mob);
 
@@ -426,6 +482,7 @@ void player_tick(Player* player){
         }
 	}
 
+	/* Stamina floor reached: wait a bit before recharging at all. */
 	if (player->stamina <= 0 && player->staminaRechargeDelay == 0 && player->staminaRecharge == 0) {
 		player->staminaRechargeDelay = 40;
 	}
@@ -456,6 +513,7 @@ void player_tick(Player* player){
 	if (left.down) --xa;
 	if (right.down) ++xa;
 
+	/* Swimming costs one stamina per second; empty stamina drowns. */
 	if (player->mob.entity.vt->isSwimming(&player->mob.entity) && player->mob.tickTime % 60 == 0) {
 		if (player->stamina > 0) {
             --player->stamina;
@@ -490,6 +548,7 @@ void player_tick(Player* player){
 }
 
 
+/* Pays `cost` stamina points for an action (tile work, crafting...). */
 char player_payStamina(Player* player, int cost){
 	if (cost > player->stamina) {
         return 0;
@@ -500,6 +559,13 @@ char player_payStamina(Player* player, int cost){
 }
 
 
+/*
+ * Draws the player (Java: Player.render): walk-cycle frame selection
+ * from walkDist, direction-based sprite column, swim overlay (legs
+ * hidden under animated water), white flash while hurt, the four
+ * directional swing arcs with the swung item's icon, and the carried
+ * furniture rendered on top when holding one.
+ */
 void player_render(Player* player, Screen* screen){
 	int xt = 0;
 	int yt = 14;
@@ -599,6 +665,8 @@ void player_render(Player* player, Screen* screen){
 }
 
 
+/* Spawns the player on a random grass tile; retries until one is found
+ * (the surface level always has plenty, so this terminates fast). */
 char player_findStartPos(Player* player, Level* level){
 	Random* random = &player->mob.entity.random;
 
@@ -615,6 +683,11 @@ char player_findStartPos(Player* player, Level* level){
 }
 
 
+/*
+ * Releases everything the player owns: every inventory item, then the
+ * held/attack items only if they were not part of the inventory (they
+ * usually are), avoiding double frees.
+ */
 void player_free(Player* player){
 	char freeAttack = player->attackItem != 0;
     char freeActive = player->activeItem != 0;

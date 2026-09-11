@@ -1,3 +1,13 @@
+/*
+ * levelgen.c - Level generation implementation (Java: LevelGen).
+ *
+ * Terrain is built from diamond-square noise fields: several fields
+ * are combined, pushed away from the map border, and thresholded
+ * into tile IDs; then scattered feature passes add ores, stairs,
+ * sand, trees, flowers, cacti and cloud cacti. The validated
+ * wrappers regenerate the whole map until the tile census looks
+ * playable.
+ */
 #include <stdlib.h>
 #include "../../utils/javarandom.h"
 #include "levelgen.h"
@@ -11,26 +21,33 @@
 static Random lg_random;
 
 
+/* Writes a noise sample, wrapping coordinates around the field. */
 static inline void setSample(LevelGen* gen, int x, int y, double value) {
 	gen->values[(x & (gen->w - 1)) + (y & (gen->h - 1)) * gen->w] = value;
 }
 
 
+/* Reads a noise sample, wrapping coordinates around the field. */
 static inline double sample(LevelGen* gen, int x, int y) {
 	return gen->values[(x & (gen->w - 1)) + (y & (gen->h - 1)) * gen->w];
 }
 
 
+/* Seeds the shared generation RNG from the current millisecond time. */
 void levelgen_preinit() {
 	random_set_seed(&lg_random, getTimeUS() / 1000);
 }
 
 
+/* Releases a noise field's sample buffer. */
 void levelgen_free(LevelGen* gen) {
 	free(gen->values);
 }
 
 
+/* Fills a new noise field with the diamond-square algorithm: seeds a
+ * coarse grid at featureSize spacing, then repeatedly interpolates
+ * centers and edge midpoints with shrinking step size and jitter. */
 void levelgen_init(LevelGen* gen, int w, int h, int featureSize) {
 	gen->w = w;
 	gen->h = h;
@@ -87,6 +104,9 @@ void levelgen_init(LevelGen* gen, int w, int h, int featureSize) {
 }
 
 
+/* Generates an underground level of the given depth (1-3): rock with
+ * dirt and water (lava below depth 2) from combined noise fields,
+ * then scatters ore blobs and, above depth 3, up to 4 down-stairs. */
 void createUndergroundMap(unsigned char** map_r, unsigned char** data_r, int w, int h, int depth){
 	LevelGen mnoise1, mnoise2, mnoise3;
 	LevelGen nnoise1, nnoise2, nnoise3;
@@ -209,6 +229,8 @@ void createUndergroundMap(unsigned char** map_r, unsigned char** data_r, int w, 
 }
 
 
+/* Generates the sky level: cloud islands floating over infinite
+ * fall, plus scattered cloud cacti and 2 down-stairs. */
 void createSkyMap(unsigned char** map_r, unsigned char** data_r, int w, int h){
 	LevelGen noise1, noise2;
 
@@ -287,6 +309,9 @@ void createSkyMap(unsigned char** map_r, unsigned char** data_r, int w, int h){
 }
 
 
+/* Generates the overworld: water, rock and grass from noise, then
+ * feature passes for sand beaches, trees, flowers (with color/shape
+ * data), cacti on sand and up to 4 down-stairs in rock. */
 void createTopMap(unsigned char** map_r, unsigned char** data_r, int w, int h) {
 	LevelGen mnoise1, mnoise2, mnoise3, noise1, noise2;
 
@@ -424,6 +449,8 @@ void createTopMap(unsigned char** map_r, unsigned char** data_r, int w, int h) {
 }
 
 
+/* Regenerates the sky map until it has enough cloud and at least
+ * 2 down-stairs; frees and retries failed attempts. */
 void createAndValidateSkyMap(unsigned char** map_r, unsigned char** data_r, int w, int h) {
 	int count[256];
 
@@ -450,6 +477,8 @@ void createAndValidateSkyMap(unsigned char** map_r, unsigned char** data_r, int 
 }
 
 
+/* Regenerates the underground map until the rock/dirt/ore census and
+ * down-stairs count are acceptable for the depth. */
 void createAndValidateUndergroundMap(unsigned char** map_r, unsigned char** data_r, int w, int h, int depth) {
 	int count[256];
 
@@ -475,6 +504,8 @@ void createAndValidateUndergroundMap(unsigned char** map_r, unsigned char** data
 }
 
 
+/* Regenerates the overworld map until every major tile type and the
+ * down-stairs are present in sufficient quantity. */
 void createAndValidateTopMap(unsigned char** map_r, unsigned char** data_r, int w, int h) {
 	int count[256]; // TODO: maybe remove?
 

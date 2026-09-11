@@ -1,3 +1,6 @@
+/*
+ * container_menu.c - Container menu behavior (Java: ContainerMenu).
+ */
 #include "menu.h"
 #include <stdlib.h>
 #include "container_menu.h"
@@ -15,13 +18,16 @@ const menu_vt containermenu_vt = {
 	&containermenu_init
 };
 
-static int window = 0;
-static int oSelected = 0;
-static int selected = 0;
+static int window = 0;    /* Active pane: 0 container, 1 inventory. */
+static int oSelected = 0; /* Selection in the inactive pane. */
+static int selected = 0;  /* Selection in the active pane. */
 
 Inventory* contmenu_container = 0;
 char contmenu_title[64] = {0};
 
+/* Left/right swap the active pane and its selection with the other
+ * pane's; up/down move within the pane; confirming moves the
+ * selected item into the opposite inventory at the remembered slot. */
 void containermenu_tick(){
 	if(menu.clicked) game_set_menu(0);
 
@@ -63,9 +69,12 @@ void containermenu_tick(){
 		if(selected >= i->items.size) selected = i->items.size - 1;
 	}
 }
+/* Resets pane and selections to the container side. */
 void containermenu_init(){
 	window = oSelected = selected = 0;
 }
+/* Draws the container and inventory frames side by side; when the
+ * inventory pane is active the whole screen scrolls half a frame. */
 void containermenu_render(Screen* screen){
 	if(window == 1) screen_set_offset(screen, 6*8, 0);
 	font_renderFrame(screen, contmenu_title, strlen(contmenu_title), 1, 1, 12, 11);

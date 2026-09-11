@@ -1,3 +1,10 @@
+/*
+ * game.c - Game entry point and main loop (Java: Game).
+ *
+ * Owns the fixed 60Hz tick loop, SDL window/palette setup, the
+ * incremental (dirty-rect) screen blitter, HUD rendering and the
+ * level stack; main() wires everything together and runs until quit.
+ */
 #include "crafting/crafting.h"
 #include <stdio.h>
 #include <string.h>
@@ -95,31 +102,31 @@ static void set_video_driver_hint(void) {
     }
 }
 
-Screen game_screen;
-Screen game_lightScreen;
+Screen game_screen;      /* Main framebuffer the HUD/world draw into. */
+Screen game_lightScreen; /* Light map overlaid on underground levels. */
 
 int g_ticks = 0; //perf measure
 int g_frames = 0; //perf measure
 
 unsigned long tickCount = 0;
 
-SDL_Color sdl_colors[256];
+SDL_Color sdl_colors[256]; /* 6x6x6 cube palette expanded to RGB. */
 
-enum menu_id current_menu;
-char game_hasfocus = 0;
-int game_pendingLevelChange = 0;
+enum menu_id current_menu;         /* Active menu, 0 while playing. */
+char game_hasfocus = 0;            /* Window has input focus. */
+int game_pendingLevelChange = 0;   /* Depth change requested by stairs. */
 char updatePerfctr = 0;
-char running = 1;
-char isingame = 0;
+char running = 1;                  /* Main loop flag. */
+char isingame = 0;                 /* Set once a game has started. */
 
-int game_playerDeadTime = 0;
-int game_wonTimer = 0;
-int game_gameTime = 0;
-int game_currentLevel;
+int game_playerDeadTime = 0; /* Ticks since the player was removed. */
+int game_wonTimer = 0;       /* Ticks left before the won menu shows. */
+int game_gameTime = 0;       /* Ticks played this run. */
+int game_currentLevel;       /* Index into game_levels. */
 char game_hasWon = 0;
 
-Level game_levels[5] = {0};
-Level* game_level = NULL;
+Level game_levels[5] = {0};  /* Sky, surface and three depths. */
+Level* game_level = NULL;    /* Currently active level. */
 Player* game_player = NULL;
 
 const int MAX_FPS = -1;
@@ -128,12 +135,15 @@ const int MAX_FPS = -1;
 char CLICK_TO_FOCUS[] = "Click to focus!";
 
 
+/* Switches to a menu and runs its init hook; 0 resumes gameplay. */
 void game_set_menu(enum menu_id menu) {
 	current_menu = menu;
 	init_menu(menu);
 }
 
 
+/* Detaches the player, moves to the level dir steps away and snaps
+ * the position to the tile grid before re-adding it. */
 void game_changeLevel(int dir) {
 	level_removeEntity1(game_level, &game_player->mob.entity);
 
@@ -146,12 +156,16 @@ void game_changeLevel(int dir) {
 }
 
 
+/* Starts the three-second win countdown. */
 void game_won(){
 	game_wonTimer = 60 * 3;
 	game_hasWon = 1;
 }
 
 
+/* Frees old levels/player and, when in game, regenerates the whole
+ * five-level stack (sky down to depth 3), respawns the player on
+ * the surface and populates every level with mobs. */
 void game_reset() {
 	game_playerDeadTime = 0;
 	game_wonTimer = 0;
@@ -194,6 +208,8 @@ void game_reset() {
 }
 
 
+/* One-time startup: subsystem inits, builds the 6x6x6 color cube
+ * into the SDL palette, allocates the screens and opens the title. */
 void game_init(){
 	levelgen_preinit();
 	font_pre_init();
@@ -231,11 +247,15 @@ void game_init(){
 }
 
 
+/* Writes one 32-bit pixel into an SDL surface (pitch-aware). */
 void set_pixel(SDL_Surface* surface, int x, int y, int color){
 	*(int*)(surface->pixels + y * surface->pitch + x * surface->format->BytesPerPixel) = color;
 }
 
 
+/* One simulation step: advances play time, polls input and either
+ * ticks the active menu or the level itself; also drives the
+ * death/won/level-transition state machines. */
 void game_tick(){
 	++tickCount;
 
@@ -278,6 +298,8 @@ void game_tick(){
 }
 
 
+/* Draws the bottom HUD bar (health, stamina, active item), any
+ * active menu, and the optional debug overlays. */
 void game_renderGui() {
 
     // -DTEST_SHOWPORTALPOS
@@ -375,6 +397,8 @@ void game_renderGui() {
 }
 
 
+/* Draws the framed, blinking "Click to focus!" prompt shown while
+ * the window has no input focus. */
 void game_renderFocusNagger() {
 	//click_to_focus
 	int c2fLen = strlen(CLICK_TO_FOCUS);
@@ -407,6 +431,9 @@ void game_renderFocusNagger() {
 }
 
 
+/* Renders one frame: clamps the camera around the player, paints
+ * the sky background above ground, then background, sprites and the
+ * light overlay, finishing with the GUI. */
 void game_render() {
 	if (isingame) {
 		int xScroll = game_player->mob.entity.x - game_screen.w / 2;
@@ -445,6 +472,9 @@ void game_render() {
 }
 
 
+/* Entry point: SDL window/palette setup, then the fixed-timestep
+ * loop (60 ticks per second) with event handling and an incremental
+ * blit that only updates pixels changed since the last frame. */
 int main(int argc, char** argv) {
 	unsigned long long int lastTime = getTimeUS();
 	unsigned long long int lastPrinted = lastTime;

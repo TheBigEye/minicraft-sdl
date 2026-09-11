@@ -1,3 +1,6 @@
+/*
+ * recipe.c - Recipe behavior (Java: Recipe).
+ */
 #include "recipe.h"
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +17,7 @@
 #include "../item/tool_item.h"
 
 
+/* Common setup: copies the result template and starts the cost list. */
 void recipe_create(Recipe* recipe, Item* result) {
 	recipe->resultTemplate = *result;
 	create_arraylist(&recipe->costs);
@@ -21,6 +25,8 @@ void recipe_create(Recipe* recipe, Item* result) {
 }
 
 
+/* Builds a furniture recipe; a throwaway furniture entity provides
+ * the icon/name template, the real one is created when crafting. */
 void furniturerecipe_create(Recipe* recipe, EntityId furniture) {
 	Item item;
 	Furniture* furn = entity_createFurniture(furniture);
@@ -36,6 +42,7 @@ void furniturerecipe_create(Recipe* recipe, EntityId furniture) {
 }
 
 
+/* Builds a recipe producing one unit of a resource. */
 void resourcerecipe_create(Recipe* recipe, Resource* resource) {
 	Item item;
 	resourceitem_create_cnt(&item, resource, 1);
@@ -45,6 +52,7 @@ void resourcerecipe_create(Recipe* recipe, Resource* resource) {
 }
 
 
+/* Builds a recipe producing a tool of the given type and tier. */
 void toolrecipe_create(Recipe* recipe, ToolType type, int level) {
 	Item item;
 	toolitem_create(&item, type, level);
@@ -55,6 +63,7 @@ void toolrecipe_create(Recipe* recipe, ToolType type, int level) {
 }
 
 
+/* Appends a heap-allocated resource cost item to the cost list. */
 void recipe_addCost(Recipe* recipe, Resource* resource, int count) {
 	Item* item = malloc(sizeof(Item));
 	resourceitem_create_cnt(item, resource, count);
@@ -62,6 +71,7 @@ void recipe_addCost(Recipe* recipe, Resource* resource, int count) {
 }
 
 
+/* Sets canCraft only when the inventory holds every cost in full. */
 void recipe_checkCanCraft(Recipe* recipe, Player* player) {
 	for (int i = 0; i < recipe->costs.size; ++i) {
 		Item* item = recipe->costs.elements[i];
@@ -77,6 +87,7 @@ void recipe_checkCanCraft(Recipe* recipe, Player* player) {
 }
 
 
+/* Draws icon and name; the name is dimmed while canCraft is false. */
 void recipe_renderInventory(Recipe* recipe, Screen* screen, int x, int y) {
 	int sprite = item_getSprite(&recipe->resultTemplate);
 	int color = item_getColor(&recipe->resultTemplate);
@@ -90,6 +101,8 @@ void recipe_renderInventory(Recipe* recipe, Screen* screen, int x, int y) {
 }
 
 
+/* Produces the result: furniture recipes instantiate a fresh entity
+ * at craft time, tools and resources reuse the template item. */
 void recipe_craft(Recipe* recipe, Player* player) {
 	Item item;
 	Furniture* furniture;
@@ -119,6 +132,7 @@ void recipe_craft(Recipe* recipe, Player* player) {
 }
 
 
+/* Removes every resource cost from the player's inventory. */
 void recipe_deductCost(Recipe* recipe, Player* player) {
 	for (int i = 0; i < recipe->costs.size; ++i) {
 		Item* item = recipe->costs.elements[i];

@@ -1,3 +1,9 @@
+/*
+ * ore_tile.c - Ore tile behavior (Java: tile.OreTile).
+ *
+ * One implementation serves all ore veins; the resource to drop and
+ * the vein color are configured at init time.
+ */
 #include "tile.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +18,7 @@
 #include "../../item/resourceitem.h"
 
 
+/* Records the dropped resource and derives the vein color from it. */
 void oretile_init(TileID id, Resource* toDrop){
 	tile_init(id);
 	Tile* tile = tiles + id;
@@ -20,6 +27,8 @@ void oretile_init(TileID id, Resource* toDrop){
 }
 
 
+/* Draws the vein sprite, re-tinted each frame from the drop color and
+ * the current dirt palette. */
 void oretile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	tiles[id].add.ore.color = (tiles[id].add.ore.toDrop->color & 0xffffff00) + getColor(level->dirtColor);
 
@@ -30,6 +39,8 @@ void oretile_render(TileID id, Screen* screen, Level* level, int x, int y){
 }
 
 
+/* Internal chip-damage helper: shows feedback and drops the ore
+ * resource; after a random number of hits the vein is spent (dirt). */
 void oretile_hurt_(TileID id, Level* level, int x, int y, int dmg){
 	int damage = level_get_data(level, x, y) + 1;
 
@@ -63,6 +74,7 @@ void oretile_hurt_(TileID id, Level* level, int x, int y, int dmg){
 }
 
 
+/* Pickaxe interaction: costs stamina and chips the vein. */
 char oretile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if (item->id == TOOL) {
 		if (item->add.tool.type == PICKAXE) {
@@ -76,6 +88,7 @@ char oretile_interact(TileID id, Level* level, int xt, int yt, Player* player, I
 }
 
 
+/* Generic attacks do no damage here; only feedback particles show. */
 void oretile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	oretile_hurt_(id, level, x, y, 0);
 }

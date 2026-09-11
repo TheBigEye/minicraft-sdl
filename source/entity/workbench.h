@@ -1,3 +1,6 @@
+/*
+ * workbench.h - Workbench furniture: the main crafting station.
+ */
 #ifndef WORKBENCH_H
 #define WORKBENCH_H
 #include "furniture.h"

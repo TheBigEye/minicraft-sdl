@@ -1,3 +1,9 @@
+/*
+ * airwizard.h - The Air Wizard: boss mob of the game.
+ *
+ * A 2000-HP wizard roaming the sky island; defeating it wins the
+ * game. It attacks by firing spark projectiles in patterns.
+ */
 #ifndef AIRWIZARD_H
 #define AIRWIZARD_H
 
@@ -7,11 +13,11 @@ struct _Screen;
 
 typedef struct _AirWizard{
 	Mob mob;
-	int xa, ya;
-	int randomWalkTime;
-	int attackDelay;
-	int attackTime;
-	int attackType;
+	int xa, ya;           /* current walking velocity */
+	int randomWalkTime;   /* ticks until a new random direction */
+	int attackDelay;      /* countdown to the next attack cycle */
+	int attackTime;       /* ticks left in the current cycle */
+	int attackType;       /* which spark pattern is being fired */
 } AirWizard;
 
 void airwizard_create(AirWizard* wizard);

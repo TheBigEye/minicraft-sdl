@@ -1,3 +1,6 @@
+/*
+ * furnace.h - Furnace furniture: smelting station (ores to ingots).
+ */
 #ifndef FURNACE_H
 #define FURNACE_H
 #include "furniture.h"

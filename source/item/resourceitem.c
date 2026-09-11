@@ -1,3 +1,6 @@
+/*
+ * resourceitem.c - Resource item behavior (Java: ResourceItem).
+ */
 #include "itemids.h"
 #include <stdio.h>
 #include "resourceitem.h"
@@ -31,6 +34,7 @@ void resourceitem_renderIcon(Item* item, Screen* screen, int x, int y){
 	render_screen(screen, x, y, item->add.resource.resource->sprite, item->add.resource.resource->color, 0);
 }
 
+/* Draws icon, name and stack count (clamped to 999) in the row. */
 void resourceitem_renderInventory(Item* item, Screen* screen, int x, int y){
 	render_screen(screen, x, y, item->add.resource.resource->sprite, item->add.resource.resource->color, 0);
 	font_draw(item->add.resource.resource->name, strlen(item->add.resource.resource->name), screen, x + 32, y, getColor4(-1, 555, 555, 555));
@@ -45,6 +49,8 @@ char* resourceitem_getName(Item* item){
 	return item->add.resource.resource->name;
 }
 
+/* Delegates to the resource's tile interaction; consumes one unit
+ * from the stack when it succeeds. */
 char resourceitem_interactOn(Item* item, TileID tile, Level* level, int xt, int yt, Player* player, int attackDir){
 	char b = resource_interactOn(item->add.resource.resource, tile, level, xt, yt, player, attackDir);
 	if(b){

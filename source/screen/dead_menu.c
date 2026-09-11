@@ -1,3 +1,6 @@
+/*
+ * dead_menu.c - Death screen behavior (Java: DeadMenu).
+ */
 #include "../inputhandler.h"
 #include <stdio.h>
 #include "../game.h"
@@ -17,6 +20,7 @@ const menu_vt deadmenu_vt = {
 };
 
 
+/* Ignores input for the first 60 ticks, then returns to the title. */
 void deadmenu_tick(){
 	if(deadmenu_inputDelay > 0){
 		--deadmenu_inputDelay;
@@ -31,6 +35,7 @@ void deadmenu_init() {
 }
 
 
+/* Draws the death message with play time and score. */
 void deadmenu_render(Screen* screen) {
 	char vd[] = "";
 	char timeString[256];

@@ -1,3 +1,7 @@
+/*
+ * entityid.h - Runtime class tags for every entity type: the C
+ *              replacement for Java's instanceof checks.
+ */
 #ifndef ENTITYID_H
 #define ENTITYID_H
 

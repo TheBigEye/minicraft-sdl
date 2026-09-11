@@ -1,3 +1,6 @@
+/*
+ * zombie.h - Zombie mob: a walking undead that drops cloth.
+ */
 #ifndef ZOMBIE_H
 #define ZOMBIE_H
 #include "mob.h"

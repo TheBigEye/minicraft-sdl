@@ -1,3 +1,6 @@
+/*
+ * title_menu.c - Title menu behavior (Java: TitleScreen).
+ */
 #include "menu.h"
 #include "../inputhandler.h"
 #include "title_menu.h"
@@ -36,6 +39,8 @@ void titlemenu_init() {
 }
 
 
+/* Draws the logo band, the three options (highlighted pair on the
+ * selection) and the controls hint. */
 void titlemenu_render(Screen* screen) {
 	clear_screen(screen, 0);
 
@@ -71,6 +76,9 @@ void titlemenu_render(Screen* screen) {
 }
 
 
+/* Moves the selection with up/down; confirming starts the game or
+ * opens the instructions/about menus, remembering this one as the
+ * parent to return to. */
 void titlemenu_tick() {
 	if (up.clicked) --titlemenu_selected;
 	if (down.clicked) ++titlemenu_selected;

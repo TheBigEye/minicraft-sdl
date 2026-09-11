@@ -1,3 +1,6 @@
+/*
+ * grass_tile.c - Grass tile behavior (Java: tile.GrassTile).
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../level.h"
@@ -11,6 +14,8 @@
 
 static Random trandom;
 
+/* Registers the grass connection flags and seeds the shared spread
+ * RNG from the current millisecond time. */
 void grasstile_init(TileID id) {
 	tile_init(id);
 	Tile* t = tiles + id;
@@ -20,6 +25,8 @@ void grasstile_init(TileID id) {
 }
 
 
+/* Shovel digs grass into dirt, hoe tills it into farmland; each has a
+ * 1-in-5 chance of dropping seeds instead of the usual result. */
 char grasstile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if (item->id == TOOL) {
 		if (item->add.tool.type == SHOVEL) {
@@ -62,6 +69,8 @@ char grasstile_interact(TileID id, Level* level, int xt, int yt, Player* player,
 }
 
 
+/* Draws the four grass quadrants, blending edges next to tiles that
+ * do not connect to grass. */
 void grasstile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int col = getColor4(level->grassColor, level->grassColor, level->grassColor + 111, level->grassColor + 111);
 	int transitionColor = getColor4(level->grassColor - 111, level->grassColor, level->grassColor + 111, level->dirtColor);
@@ -97,6 +106,7 @@ void grasstile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 }
 
 
+/* 1-in-40 chance per tick to spread onto a random adjacent dirt tile. */
 void grasstile_tick(TileID id, Level* level, int xt, int yt){
 	if (random_next_int(&trandom, 40)) return;
 

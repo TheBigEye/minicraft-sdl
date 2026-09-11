@@ -1,3 +1,10 @@
+/*
+ * airwizard.c - Air Wizard boss (Java: entity.AirWizard).
+ *
+ * The game's final challenge: wanders the sky island and fires
+ * spark projectiles at the player in attack cycles. Killing it
+ * ends the game with a win.
+ */
 #include "airwizard.h"
 #include <stdlib.h>
 #include "../game.h"
@@ -29,6 +36,7 @@ static const EntityVTable airwizard_vtable = {
 };
 
 
+/* Spawns the wizard at a random spot with the boss health pool. */
 void airwizard_create(AirWizard* wizard){
 	mob_create(&wizard->mob);
 	wizard->mob.entity.vt = &airwizard_vtable;
@@ -46,6 +54,11 @@ void airwizard_create(AirWizard* wizard){
 }
 
 
+/*
+ * Boss AI (Java: AirWizard.tick): random walking interleaved with
+ * attack cycles that spawn sparks aimed around the player; the
+ * cycle shape depends on the current attackType.
+ */
 void airwizard_tick(AirWizard* wizard){
 	mob_tick(&wizard->mob);
 
@@ -111,6 +124,7 @@ void airwizard_doHurt(AirWizard* wizard, int damage, int attackDir){
 }
 
 
+/* Draws the wizard sprite with walk animation and facing. */
 void airwizard_render(AirWizard* wizard, Screen* screen){
 	int xt = 8;
 	int yt = 14;
@@ -163,6 +177,10 @@ void airwizard_touchedBy(AirWizard* wizard, Entity* entity){
 }
 
 
+/*
+ * Boss death (Java: AirWizard.die): awards 1000 score, starts the
+ * win sequence through player_gameWon() and plays bossdeath.
+ */
 void airwizard_die(AirWizard* wizard){
 	mob_die(&wizard->mob);
 

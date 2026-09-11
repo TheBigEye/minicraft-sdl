@@ -1,3 +1,6 @@
+/*
+ * water_tile.c - Water tile behavior (Java: tile.WaterTile).
+ */
 #include "tile.h"
 #include "../../utils/javarandom.h"
 #include "../../gfx/color.h"
@@ -6,6 +9,7 @@ static Random wRandom;
 static Random trandom;
 
 
+/* Registers the water connection flags and seeds the spread RNG. */
 void watertile_init(TileID id){
 	tile_init(id);
 	random_set_seed(&trandom, getTimeUS() / 1000);
@@ -15,6 +19,8 @@ void watertile_init(TileID id){
 }
 
 
+/* Draws the animated water surface from a position/tick-seeded RNG,
+ * blending edges against sand and solid ground. */
 void watertile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	random_set_seed(&wRandom, (tile_tickCount + (x / 2 - y) * 4311) / 10 * 54687121 + x * 3271612 + y * 3412987161);
 
@@ -58,6 +64,7 @@ void watertile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 }
 
 
+/* Slowly spreads water into a random adjacent hole tile. */
 void watertile_tick(TileID id, Level* level, int xt, int yt) {
 	int xn = xt;
 	int yn = yt;

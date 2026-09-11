@@ -1,5 +1,11 @@
+/*
+ * plantable_resource.c - Plantable resource initializer
+ * (Java: PlantableResource).
+ */
 #include "resource.h"
 
+/* Fills the common fields then the planting rules (borrowed source
+ * tile table; never freed). */
 void init_plantable_resource(Resource* resource, char* name, int sprite, int color, TileID target, TileID* sources, int size) {
 	init_resource(resource, name, sprite, color);
 

@@ -1,3 +1,6 @@
+/*
+ * powergloveitem.c - Power glove behavior (Java: PowerGloveItem).
+ */
 #include "powergloveitem.h"
 #include "../gfx/color.h"
 #include "../gfx/font.h"
@@ -29,6 +32,8 @@ void powergloveitem_renderInventory(Item* item, Screen* screen, int x, int y){
 char* powergloveitem_getName(Item* item){
 	return name;
 }
+/* Punching furniture with the glove picks it up into the inventory;
+ * anything else is ignored. */
 uint8_t powergloveitem_interact(Item* item, Player* player, Entity* entity, int attackDir){
 	if(entity_isfurniture(entity)){
 		furniture_take((Furniture *) entity, player);

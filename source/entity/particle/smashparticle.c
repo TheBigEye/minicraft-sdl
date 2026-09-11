@@ -1,3 +1,9 @@
+/*
+ * smashparticle.c - SmashParticle (Java: entity.particle.SmashParticle).
+ *
+ * A white 2x2 mirrored-tile burst living 10 ticks at the smashed spot.
+ * Like the original, spawning it plays the monsterHurt sound.
+ */
 #include "smashparticle.h"
 #include "../../gfx/color.h"
 #include "../../sound/sound.h"
@@ -22,6 +28,7 @@ static const EntityVTable smashparticle_vtable = {
 };
 
 
+/* Places the burst at (x, y) with age 0 and plays the smash sound. */
 void smashparticle_create(SmashParticle* particle, int x, int y){
 	entity_create(&particle->entity);
 	particle->entity.vt = &smashparticle_vtable;
@@ -34,6 +41,7 @@ void smashparticle_create(SmashParticle* particle, int x, int y){
 }
 
 
+/* Lives exactly 10 ticks, then marks itself removed. */
 void smashparticle_tick(SmashParticle* particle){
 	++particle->time;
 	if (particle->time > 10) {
@@ -42,6 +50,7 @@ void smashparticle_tick(SmashParticle* particle){
 }
 
 
+/* Draws one sheet tile four times, mirrored, forming a symmetric burst. */
 void smashparticle_render(SmashParticle* particle, Screen* screen){
 	int col = getColor4(-1, 555, 555, 555);
 	int x = particle->entity.x;

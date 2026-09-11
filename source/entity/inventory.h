@@ -1,3 +1,7 @@
+/*
+ * inventory.h - Item container shared by the player and chests
+ *               (Java: entity.Inventory).
+ */
 #ifndef INVENTORY_H
 #define INVENTORY_H
 

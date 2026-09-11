@@ -1,3 +1,10 @@
+/*
+ * chest.c - Chest furniture (Java: com.mojang.ld22.entity.Chest).
+ *
+ * Unlike the crafting stations, a chest stores items: it owns an
+ * Inventory freed together with the chest, and using it opens the
+ * container menu bound to that inventory.
+ */
 #include "chest.h"
 #include <stdlib.h>
 #include "player.h"
@@ -28,6 +35,7 @@ static const EntityVTable chest_vtable = {
 	.free           = (vt_free_fn) chest_free,
 };
 
+/* Spawns a chest and creates the empty inventory it stores. */
 void chest_create(Chest* chest){
 	char* name = malloc(strlen("Chest") + 1); //XXX ew
 	strcpy(name, "Chest");
@@ -43,6 +51,7 @@ void chest_create(Chest* chest){
 }
 
 
+/* Opens the container menu over this chest's own inventory. */
 char chest_use(Chest* chest, struct _Player* player, int attackDir){
 	strcpy(contmenu_title, "Chest");
 	contmenu_container = &chest->inventory;
@@ -55,6 +64,7 @@ char chest_use(Chest* chest, struct _Player* player, int attackDir){
 }
 
 
+/* Releases the furniture name and the chest inventory. */
 void chest_free(Chest* chest){
 	furniture_free((Furniture *) chest);
 	inventory_free(&chest->inventory);

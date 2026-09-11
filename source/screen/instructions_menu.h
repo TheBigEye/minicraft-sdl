@@ -1,3 +1,6 @@
+/*
+ * instructions_menu.h - How-to-play menu (Java: InstructionsScreen).
+ */
 #ifndef SCREEN_INSTRUCTIONS_MENU_H_
 #define SCREEN_INSTRUCTIONS_MENU_H_
 #include "menu.h"

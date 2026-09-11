@@ -1,3 +1,9 @@
+/*
+ * tile.c - Tile dispatch table (Java: Tile static registry).
+ *
+ * Wires every tile id to its behavior functions and forwards the
+ * generic tile_* calls to the per-tile implementations.
+ */
 #include "tile.h"
 #include "grass_tile.h"
 #include "water_tile.h"
@@ -33,6 +39,8 @@
 Tile tiles[256];
 int tile_tickCount = 0;
 
+/* Registers all tile types: ids, connection flags and behaviors.
+ * Called once during game initialization. */
 void init_tiles(){
 
 	for(int i = 0; i < 256; ++i){
@@ -64,12 +72,14 @@ void init_tiles(){
 	tile_init(CLOUD_CACTUS);
 }
 
+/* Clears one tiles[] entry before its own init customizes it. */
 void tile_init(TileID id){
 	Tile* t = tiles + id;
 	t->connectsToGrass = t->connectsToLava = t->connectsToSand = t->connectsToWater = 0;
 	t->id = id;
 }
 
+/* Draws the tile at (x, y) by dispatching to its render routine. */
 void tile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	switch(id){
 		case CACTUS:
@@ -140,6 +150,11 @@ void tile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	}
 }
 
+/*
+ * Collision query (Java: Tile.mayPass): solids block everyone,
+ * liquids only let swimmers through, holes and falls block walkers,
+ * and so on per tile type.
+ */
 char tile_mayPass(TileID id, Level* level, int x, int y, Entity* e){
 
     // -DGODMODE
@@ -176,6 +191,7 @@ char tile_mayPass(TileID id, Level* level, int x, int y, Entity* e){
 }
 
 
+/* Light emitted by the tile itself; only lava glows. */
 int tile_getLightRadius(TileID id, Level* level, int x, int y){
 	switch(id){
 		case LAVA:
@@ -186,6 +202,8 @@ int tile_getLightRadius(TileID id, Level* level, int x, int y){
 }
 
 
+/* Applies attack/mining damage to the tile; each type decides what
+ * breaks, what drops and which tool level is required. */
 void tile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
 	switch(id){
 		case CACTUS:
@@ -225,6 +243,7 @@ void tile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int 
 	//TODO
 }
 
+/* Notifies the tile of an entity collision (cactus stings, ...). */
 void tile_bumpedInto(TileID id, Level* level, int x, int y, Entity* entity){
 	switch(id){
 		case CACTUS:
@@ -242,6 +261,8 @@ void tile_bumpedInto(TileID id, Level* level, int x, int y, Entity* entity){
 	}
 }
 
+/* Occasional per-tile update (crop growth, grass spread, sapling
+ * growing); gated by a random chance per type. */
 void tile_tick(TileID id, Level* level, int xt, int yt) {
 	switch(id){
 		case CACTUS:
@@ -285,6 +306,8 @@ void tile_tick(TileID id, Level* level, int xt, int yt) {
 	}
 }
 
+/* Notifies the tile that an entity stands on it (flowers break,
+ * saplings trample, ...). */
 void tile_steppedOn(TileID id, Level* level, int x, int y, Entity* entity){
 	switch(id){
 		case SAND:
@@ -303,6 +326,8 @@ void tile_steppedOn(TileID id, Level* level, int x, int y, Entity* entity){
 	}
 }
 
+/* Item-on-tile interaction: shovel/hoe/axe effects per tile type;
+ * returns whether the item's swing was consumed. */
 char tile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir){
 	switch(id){
 		case CLOUD_CACTUS:
@@ -336,11 +361,13 @@ char tile_interact(TileID id, Level* level, int xt, int yt, struct _Player* play
 	}
 }
 
+/* Use-key interaction (stairs trigger level changes here). */
 char tile_use(TileID id, Level* level, int xt, int yt, Player* player, int attackDir){
 	//doesnt do anything
 	return 0;
 }
 
+/* True for water and lava; used to pick liquid edge sprites. */
 char tile_connectsToLiquid(TileID id) {
 	return tiles[id].connectsToWater || tiles[id].connectsToLava;
 }

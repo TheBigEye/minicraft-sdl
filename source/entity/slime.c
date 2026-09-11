@@ -1,3 +1,9 @@
+/*
+ * slime.c - Slime mob (Java: entity.Slime).
+ *
+ * A simple hopping enemy: jumps in random directions, harms the
+ * player on contact and drops slime resources when killed.
+ */
 #include "slime.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +35,8 @@ static const EntityVTable slime_vtable = {
 };
 
 
+/* Spawns a slime of level `lvl` at a random spot; health and
+ * damage scale with the level (health = lvl*lvl*5). */
 void slime_create(Slime* slime, int lvl) {
 	mob_create(&slime->mob);
 	slime->mob.entity.vt = &slime_vtable;
@@ -45,6 +53,8 @@ void slime_create(Slime* slime, int lvl) {
 }
 
 
+/* Hopping AI: keeps jumping along the current direction and picks
+ * a new random one when blocked or by chance, as in Java. */
 void slime_tick(Slime* slime){
 	mob_tick(&slime->mob);
 	Random* random = &slime->mob.entity.random;
@@ -80,6 +90,8 @@ void slime_tick(Slime* slime){
 }
 
 
+/* Drops 1-2 slime resource items around the corpse and awards
+ * 25*lvl score when the player shares the level. */
 void slime_die(Slime* slimee) {
 	mob_die(&slimee->mob);
 
@@ -111,6 +123,7 @@ void slime_die(Slime* slimee) {
 }
 
 
+/* Draws the slime body, squashed while a jump is active. */
 void slime_render(Slime* slime, Screen* screen){
 	int xt = 0;
 	int yt = 18;

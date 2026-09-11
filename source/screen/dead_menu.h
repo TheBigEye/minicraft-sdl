@@ -1,3 +1,7 @@
+/*
+ * dead_menu.h - Death screen (Java: DeadMenu): score summary with a
+ *               short input lockout.
+ */
 #ifndef DEAD_MENU_H
 #define DEAD_MENU_H
 #include "menu.h"

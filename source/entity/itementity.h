@@ -1,3 +1,7 @@
+/*
+ * itementity.h - A dropped item lying in the world, waiting to be
+ *                picked up by a player.
+ */
 #ifndef ITEMENTITY_H
 #define ITEMENTITY_H
 #include "entity.h"

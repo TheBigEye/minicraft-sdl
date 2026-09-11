@@ -1,3 +1,7 @@
+/*
+ * level_transition_menu.h - Level transition (Java:
+ * LevelTransitionMenu): the wipe animation played between depths.
+ */
 #ifndef LEVEL_TRANSITION_MENU_H
 #define LEVEL_TRANSITION_MENU_H
 

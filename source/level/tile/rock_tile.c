@@ -1,3 +1,9 @@
+/*
+ * rock_tile.c - Rock tile behavior (Java: tile.RockTile).
+ *
+ * Takes 50 accumulated damage to break into dirt, dropping stone and
+ * a chance of coal; damage heals back over time.
+ */
 #include "tile.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +14,8 @@
 #include "../../item/resource/resource.h"
 #include "../../item/resourceitem.h"
 
+/* Internal chip-damage helper: shows smash/damage feedback and, at 50
+ * accumulated damage, breaks into dirt dropping stone and coal. */
 void rocktile_hurt_(TileID id, Level* level, int x, int y, int dmg){
 	int damage = level_get_data(level, x, y) + dmg;
 
@@ -58,6 +66,8 @@ void rocktile_hurt_(TileID id, Level* level, int x, int y, int dmg){
 }
 
 
+/* Pickaxe interaction: each hit lands a random chunk of damage
+ * scaled by the tool level. */
 char rocktile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if (item->id == TOOL) {
 		if (item->add.tool.type == PICKAXE) {
@@ -71,11 +81,13 @@ char rocktile_interact(TileID id, Level* level, int xt, int yt, Player* player, 
 }
 
 
+/* Forwards mob damage into the chip-damage path. */
 void rocktile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	rocktile_hurt_(id, level, x, y, dmg);
 }
 
 
+/* Draws the four rock quadrants with light edges against other tiles. */
 void rocktile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int col = getColor4(444, 444, 333, 333);
 	int transitionColor = getColor4(111, 444, 555, level->dirtColor);
@@ -132,6 +144,7 @@ void rocktile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 }
 
 
+/* Heals one point of accumulated footstep data per tick, if any. */
 void rocktile_tick(TileID id, Level* level, int xt, int yt) {
 	int damage = level_get_data(level, xt, yt);
 	if (damage) {

@@ -1,9 +1,13 @@
+/*
+ * lava_tile.c - Lava tile behavior (Java: tile.LavaTile).
+ */
 #include "tile.h"
 #include "../../gfx/color.h"
 
 static Random wRandom;
 static Random trandom;
 
+/* Registers the lava connection flags and seeds the spread RNG. */
 void lavatile_init(TileID id){
 	tile_init(id);
 	
@@ -12,6 +16,8 @@ void lavatile_init(TileID id){
 	random_set_seed(&trandom, getTimeUS() / 1000); 
 }
 
+/* Draws the animated lava surface from a position/tick-seeded RNG,
+ * blending edges against sand and solid ground. */
 void lavatile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	random_set_seed(&wRandom, ((tile_tickCount + (x / 2 - y) * 4311) / 10 * 54687121 + x * 3271612 + y * 3412987161));
 	int col = getColor4(500, 500, 520, 550);
@@ -41,6 +47,7 @@ void lavatile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	else render_screen(screen, x * 16 + 8, y * 16 + 8, (r ? 16 : 15) + (d ? 2 : 1) * 32, (sd || sr) ? transitionColor2 : transitionColor1, 0);
 }
 
+/* Slowly spreads lava into a random adjacent hole tile. */
 void lavatile_tick(TileID id, Level* level, int xt, int yt){
 	int xn = xt;
 	int yn = yt;

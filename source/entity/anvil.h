@@ -1,3 +1,6 @@
+/*
+ * anvil.h - Anvil furniture: crafting station for the anvil recipes.
+ */
 #ifndef ANVIL_H
 #define ANVIL_H
 

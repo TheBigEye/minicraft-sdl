@@ -1,3 +1,10 @@
+/*
+ * cloud_cactus_tile.c - Cloud cactus behavior (Java: tile.CloudCactusTile).
+ *
+ * A hazard of the sky island: attacking it (or being it attacked)
+ * hurts the mob instead of breaking it easily; pickaxes chip it down
+ * until it reverts to plain cloud.
+ */
 #include "tile.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +16,8 @@
 #include "../../entity/player.h"
 
 
+/* Internal chip-damage helper: shows smash/damage feedback and, at 10
+ * accumulated damage, replaces the tile with plain cloud. */
 void cloudcactustile_hurt_(TileID id, Level* level, int x, int y, int dmg) {
 	int damage = level_get_data(level, x, y) + 1;
 
@@ -33,6 +42,7 @@ void cloudcactustile_hurt_(TileID id, Level* level, int x, int y, int dmg) {
 }
 
 
+/* Hitting a cloud cactus with any tool damages the attacker instead. */
 char cloudcactustile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if (item->id == TOOL) {
 		if (item->add.tool.type == PICKAXE) {
@@ -46,11 +56,14 @@ char cloudcactustile_interact(TileID id, Level* level, int xt, int yt, Player* p
 }
 
 
+/* Attacks against the cloud cactus do not break it: it only flashes
+ * feedback and hurts the attacker back through the mob hurt path. */
 void cloudcactustile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	cloudcactustile_hurt_(id, level, x, y, 0);
 }
 
 
+/* Draws the cloud cactus sprite over the cloud background. */
 void cloudcactustile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int col = getColor4(444, 111, 333, 555);
 

@@ -1,3 +1,6 @@
+/*
+ * oven.h - Oven furniture: cooking station for food recipes.
+ */
 #ifndef OVEN_H
 #define OVEN_H
 #include "furniture.h"

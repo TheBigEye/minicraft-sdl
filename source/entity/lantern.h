@@ -1,3 +1,6 @@
+/*
+ * lantern.h - Lantern furniture: emits light in dark areas.
+ */
 #ifndef LANTERN_H
 #define LANTERN_H
 #include "furniture.h"

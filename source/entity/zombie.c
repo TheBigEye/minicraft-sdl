@@ -1,5 +1,10 @@
 #include "../gfx/screen.h"
 #include <stdlib.h>
+/*
+ * zombie.c - Zombie mob (Java: entity.Zombie).
+ *
+ * A walking undead enemy; drops cloth resources on death.
+ */
 #include "zombie.h"
 #include "itementity.h"
 #include "../item/resourceitem.h"
@@ -27,6 +32,7 @@ static const EntityVTable zombie_vtable = {
 };
 
 
+/* Spawns a zombie of level `lvl` at a random spot. */
 void zombie_create(Zombie* zombie, int lvl){
 	mob_create(&zombie->mob);
 	zombie->mob.entity.vt = &zombie_vtable;
@@ -42,6 +48,8 @@ void zombie_create(Zombie* zombie, int lvl){
 }
 
 
+/* Walking AI: wanders with random direction changes, matching the
+ * original's simple undead behavior. */
 void zombie_tick(Zombie* zombie) {
 	mob_tick(&zombie->mob);
 
@@ -72,6 +80,7 @@ void zombie_tick(Zombie* zombie) {
 }
 
 
+/* Draws the zombie sprite with walk animation and facing. */
 void zombie_render(Zombie* zombie, Screen* screen) {
 	int xt = 0;
 	int yt = 14;
@@ -113,6 +122,7 @@ void zombie_touchedBy(Zombie* zombie, Entity* entity) {
 }
 
 
+/* Drops 1-2 cloth items around the corpse and awards score. */
 void zombie_die(Zombie* zombie){
 	mob_die(&zombie->mob);
 

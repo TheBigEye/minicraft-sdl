@@ -1,3 +1,6 @@
+/*
+ * slime.h - Slime mob: a hopping blob that drops slime resources.
+ */
 #ifndef SLIME_H
 #define SLIME_H
 

@@ -1,6 +1,10 @@
+/*
+ * hole_tile.c - Hole tile behavior (Java: tile.HoleTile).
+ */
 #include "tile.h"
 #include "../../gfx/color.h"
 
+/* Registers the hole connection flags (sand and both liquids). */
 void holetile_init(TileID id){
 	tile_init(id);
 	
@@ -10,6 +14,8 @@ void holetile_init(TileID id){
 	t->connectsToLava = 1;
 }
 
+/* Draws the four hole quadrants, blending edges against sand and
+ * liquids with their respective transition palettes. */
 void holetile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	int col = getColor4(111, 111, 110, 110);
 	int transitionColor1 = getColor4(3, 111, level->dirtColor - 111, level->dirtColor);

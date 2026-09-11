@@ -1,3 +1,6 @@
+/*
+ * menu.c - Menu framework implementation (Java: Screen).
+ */
 #include "menu.h"
 #include "../utils/arraylist.h"
 #include "list_item.h"
@@ -27,6 +30,7 @@ menu_vt* menus[MENUS_SIZE];
 
 enum menu_id menu_parent;
 
+/* Registers every menu vtable in the id-indexed table. */
 void init_menus() {
 
 	for (int i = 0; i < MENUS_SIZE; ++i) {
@@ -45,6 +49,7 @@ void init_menus() {
 }
 
 
+/* Dispatches tick to the registered menu, warning on unknown ids. */
 void tick_menu(enum menu_id menu) {
 	if (menus[menu]) {
 		menus[menu]->tick();
@@ -54,6 +59,7 @@ void tick_menu(enum menu_id menu) {
 }
 
 
+/* Dispatches render to the registered menu, warning on unknown ids. */
 void render_menu(enum menu_id menu, Screen* screen) {
 	if (menus[menu]) {
 		menus[menu]->render(screen);
@@ -63,6 +69,7 @@ void render_menu(enum menu_id menu, Screen* screen) {
 }
 
 
+/* Dispatches init to the registered menu, warning on unknown ids. */
 void init_menu(enum menu_id menu) {
 	if (menus[menu]) {
 		menus[menu]->init();
@@ -72,6 +79,9 @@ void init_menu(enum menu_id menu) {
 }
 
 
+/* Draws a window of list items centered on the selection, with >
+ * and < cursors; a negative selected hides the cursor (used while
+ * scrolling). Items are drawn through the per-row callback. */
 void menu_render_item_list(Screen* screen, int xo, int yo, int x1, int y1, ArrayList* listItems, int selected, void* callback) {
 	char renderCursor = 1;
 

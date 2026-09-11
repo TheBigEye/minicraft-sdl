@@ -1,3 +1,7 @@
+/*
+ * won_menu.h - Victory screen (Java: WonMenu): score summary shown
+ *              after beating the air wizard.
+ */
 #ifndef WON_MENU_H
 #define WON_MENU_H
 #include "menu.h"

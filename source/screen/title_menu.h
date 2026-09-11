@@ -1,3 +1,7 @@
+/*
+ * title_menu.h - Title menu (Java: TitleScreen): start game, how to
+ *                play and about.
+ */
 #ifndef SCREEN_TITLE_MENU_H_
 #define SCREEN_TITLE_MENU_H_
 #include "menu.h"

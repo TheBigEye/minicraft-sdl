@@ -1,3 +1,6 @@
+/*
+ * inventory_menu.c - Inventory menu behavior (Java: InventoryMenu).
+ */
 #include "inventory_menu.h"
 #include "../inputhandler.h"
 #include "../game.h"
@@ -15,6 +18,8 @@ const menu_vt inventorymenu_vt = {
 
 int inventorymenu_selected;
 
+/* Up/down cycle the items (wrapping); confirming equips the
+ * selected item as the active one and closes the menu. */
 void inventorymenu_tick() {
 	if (menu.clicked) game_set_menu(0);
 
@@ -42,6 +47,8 @@ void inventorymenu_tick() {
 }
 
 
+/* Returns the active item to the top of the inventory so it shows
+ * in the list while browsing. */
 void inventorymenu_init() {
 	inventorymenu_selected = 0;
 	if (game_player->activeItem) {
@@ -51,6 +58,7 @@ void inventorymenu_init() {
 }
 
 
+/* Draws the framed item list with the selection cursor. */
 void inventorymenu_render(Screen* screen) {
 	char inv[] = "inventory";
 	font_renderFrame(screen, inv, strlen(inv), 1, 1, 12, 11);

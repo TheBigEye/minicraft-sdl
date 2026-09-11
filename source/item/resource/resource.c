@@ -1,3 +1,7 @@
+/*
+ * resource.c - Resource singletons and usage (Java: Resource,
+ * FoodResource and PlantableResource definitions).
+ */
 #include <stdio.h>
 #include <string.h>
 #include "resource.h"
@@ -31,6 +35,8 @@ Resource cloud;
 Resource gem;
 
 
+/* Initializes a plain resource; names longer than six characters are
+ * truncated with a warning. */
 void init_resource(Resource* resource, char* name, int sprite, int color) {
 	size_t len = strlen(name);
 
@@ -46,6 +52,7 @@ void init_resource(Resource* resource, char* name, int sprite, int color) {
 }
 
 
+/* Tiles each plantable resource may be planted on. */
 TileID flower_sources[] = {GRASS};
 TileID acorn_sources[] = {GRASS};
 TileID dirt_sources[] = {HOLE, WATER, LAVA};
@@ -55,6 +62,8 @@ TileID seeds_sources[] = {FARMLAND};
 TileID cloud_sources[] = {INFINITE_FALL};
 
 
+/* Fills every resource singleton with its name, sprite, color and
+ * food/plantable extras. */
 void init_resources() {
 	init_resource(&wood, "Wood", 1 + 4 * 32, getColor4(-1, 200, 531, 430));
 	init_resource(&stone, "Stone", 2 + 4 * 32, getColor4(-1, 111, 333, 555));
@@ -87,6 +96,9 @@ void init_resources() {
 }
 
 
+/* Using a resource on a tile: plantables replace one of their source
+ * tiles with the target tile; edibles heal the player at a stamina
+ * cost. Anything else cannot be used this way. */
 char resource_interactOn(Resource* resource, TileID tile, Level* level, int xt, int yt, Player* player, int attackDir) {
 	// printf("%p %p %d\n", resource, &acorn, resource == &acorn);
 	if (resource == &cloud || resource == &flower || resource == &acorn || resource == &dirt || resource == &sand || resource == &cactusFlower || resource == &seeds) {

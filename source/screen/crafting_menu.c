@@ -1,3 +1,6 @@
+/*
+ * crafting_menu.c - Crafting menu behavior (Java: CraftingMenu).
+ */
 #include "../gfx/font.h"
 #include "../gfx/color.h"
 #include "crafting_menu.h"
@@ -16,6 +19,9 @@ const menu_vt craftingmenu_vt = {
 
 ArrayList* crmenu_recipes = 0;
 static int selected = 0;
+/* Up/down cycle the recipe list (wrapping); confirming crafts the
+ * selected recipe when affordable, then refreshes availability for
+ * the whole list. */
 void craftingmenu_tick(){
 
 	if(menu.clicked) game_set_menu(0);
@@ -42,6 +48,7 @@ void craftingmenu_tick(){
 	}
 }
 
+/* Sorts craftable recipes ahead of unaffordable ones. */
 static int _cmpRec(const void* recipe, const void* recipe2){
 	Recipe* r1 = *(Recipe**)recipe;
 	Recipe* r2 = *(Recipe**)recipe2;
@@ -51,6 +58,8 @@ static int _cmpRec(const void* recipe, const void* recipe2){
 	return 0;
 }
 
+/* Re-checks every recipe against the inventory and sorts craftable
+ * ones first. */
 void craftingmenu_init(){
 	selected = 0;
 
@@ -59,6 +68,8 @@ void craftingmenu_init(){
 	}
 	qsort(crmenu_recipes->elements, crmenu_recipes->size, sizeof(*crmenu_recipes->elements), _cmpRec);
 }
+/* Draws the recipe list plus the "Have"/"Cost" panels; costs are
+ * dimmed while the player is short on that resource. */
 void craftingmenu_render(Screen* screen){
 	char s1[] = "Have";
 	char s2[] = "Cost";

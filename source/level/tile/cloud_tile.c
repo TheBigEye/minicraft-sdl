@@ -1,3 +1,6 @@
+/*
+ * cloud_tile.c - Cloud tile behavior (Java: tile.CloudTile).
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../../gfx/color.h"
@@ -8,6 +11,7 @@
 #include "../../item/resource/resource.h"
 #include "../level.h"
 
+/* Draws the cloud floor, blending edges that border infinite fall. */
 void cloudtile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	int col = getColor4(444, 444, 555, 555);
 	int transitionColor = getColor4(333, 444, 555, -1);
@@ -50,6 +54,7 @@ void cloudtile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	}
 }
 
+/* Shoveling cloud opens an infinite fall hole into the sky. */
 char cloudtile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 	if(item->id == TOOL){
 		if(item->add.tool.type == SHOVEL){

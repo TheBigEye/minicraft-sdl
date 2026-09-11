@@ -1,3 +1,7 @@
+/*
+ * sand_tile.h - Sand tile: shores and beaches; shows footprints and
+ *               can be dug with a shovel.
+ */
 #ifndef LEVEL_TILE_SAND_TILE_H_
 #define LEVEL_TILE_SAND_TILE_H_
 
@@ -8,7 +12,9 @@ struct _Player;
 
 void sandtile_init(TileID id);
 void sandtile_render(TileID id, Screen* screen, Level* level, int x, int y);
+/* Clears footprint data over time. */
 void sandtile_tick(TileID id, Level* level, int xt, int yt);
+/* Shovel interaction: digs sand resources out of the beach. */
 char sandtile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
 
 #endif /* LEVEL_TILE_SAND_TILE_H_ */

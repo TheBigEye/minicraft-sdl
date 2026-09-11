@@ -1,3 +1,10 @@
+/*
+ * textparticle.c - TextParticle (Java: entity.particle.TextParticle).
+ *
+ * Floating text with simple ballistics: spawned with a random gaussian
+ * velocity, it arcs under gravity, bounces on the ground with friction
+ * and fades out after 60 ticks. Rendered twice for a drop-shadow look.
+ */
 #include "textparticle.h"
 #include "../../gfx/font.h"
 #include <stdlib.h>
@@ -24,6 +31,11 @@ static const EntityVTable textparticle_vtable = {
 	.free           = (vt_free_fn) textparticle_free,
 };
 
+/*
+ * Spawns the text at (x, y) with a small random pop velocity. The
+ * message pointer is owned by the particle (freee=1) unless the caller
+ * clears the flag for static strings.
+ */
 void textparticle_create(TextParticle* particle, char* message, int x, int y, int col) {
 	entity_create(&particle->entity);
 	particle->entity.vt = &textparticle_vtable;
@@ -47,6 +59,8 @@ void textparticle_create(TextParticle* particle, char* message, int x, int y, in
 }
 
 
+/* Integrates velocity into position; gravity pulls zz down and ground
+ * hits bounce with damping. Removes itself after 60 ticks. */
 void textparticle_tick(TextParticle* particle) {
 	++particle->time;
 
@@ -71,6 +85,8 @@ void textparticle_tick(TextParticle* particle) {
 }
 
 
+/* Draws the message horizontally centered at its height, first in black
+ * one pixel offset (shadow), then in the particle's color. */
 void textparticle_render(TextParticle* particle, Screen* screen) {
 	int x = particle->entity.x;
 	int y = particle->entity.y;
@@ -79,6 +95,7 @@ void textparticle_render(TextParticle* particle, Screen* screen) {
 }
 
 
+/* Releases the message buffer when the particle owns it. */
 void textparticle_free(TextParticle* particle) {
 	if (particle->freee) {
 		free(particle->msg);

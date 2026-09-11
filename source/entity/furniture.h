@@ -1,3 +1,7 @@
+/*
+ * furniture.h - Base class of placeable furniture (Java:
+ *               entity.Furniture): stations, chests and lanterns.
+ */
 #ifndef FURNITURE_H
 #define FURNITURE_H
 #include "entity.h"

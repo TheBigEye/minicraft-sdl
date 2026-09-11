@@ -1,9 +1,11 @@
+/*
+ * inputhandler.c - Translates SDL key events into the six game actions.
+ *
+ * The keymap keeps the original's quirks (e.g. the "6" key for moving
+ * right) and offers several aliases per action, as the Java original
+ * did for arrows/letters.
+ */
 #include "inputhandler.h"
-#ifdef USE_SDL1
-	#include <SDL/SDL.h>
-#else
-	#include <SDL2/SDL.h>
-#endif
 
 Key up;
 Key down;
@@ -13,6 +15,7 @@ Key attack;
 Key menu;
 
 
+/* Registers a press (1) or release (0); counts the press for this tick. */
 void key_toggle(Key* key, char pressed){
     if (pressed != key->down) {
         key->down = pressed;
@@ -24,6 +27,10 @@ void key_toggle(Key* key, char pressed){
 }
 
 
+/*
+ * Consumes at most one pending press per tick: `clicked` stays true for
+ * exactly one tick per press, which is what menus and item use check.
+ */
 void key_tick(Key* key){
     if (key->absorbs < key->presses) {
         ++key->absorbs;
@@ -34,6 +41,7 @@ void key_tick(Key* key){
 }
 
 
+/* Advances the press/consume state of all six actions. */
 void input_tick(){
     key_tick(&up);
     key_tick(&down);
@@ -44,6 +52,15 @@ void input_tick(){
 }
 
 
+/*
+ * Routes one SDL keysym to its action. Aliases per action:
+ *   move up    : W / up arrow
+ *   move down  : S / down arrow
+ *   move left  : A / left arrow
+ *   move right : 6 / right arrow (original keymap quirk)
+ *   menu       : Tab / Alt / Enter / X
+ *   attack     : Space / Left Ctrl / Insert / C
+ */
 #ifdef USE_SDL1
 void input_toggle(SDLKey key, char pressed) {
 #else

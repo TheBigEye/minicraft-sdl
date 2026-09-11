@@ -1,3 +1,10 @@
+/*
+ * crafting.c - Recipe table setup (Java: Crafting).
+ *
+ * Registers every vanilla recipe: furniture and wood/rock tools at
+ * the workbench, iron/gold/gem tools at the anvil, smelting at the
+ * furnace and bread at the oven.
+ */
 #include "crafting.h"
 #include <stdlib.h>
 #include "recipe.h"
@@ -9,6 +16,7 @@ ArrayList furnaceRecipes = {0};
 ArrayList workbenchRecipes = {0};
 
 
+/* Creates the lists and fills them with all vanilla recipes. */
 void crafting_init() {
 	create_arraylist(&anvilRecipes);
 	create_arraylist(&ovenRecipes);
@@ -222,6 +230,7 @@ void crafting_init() {
 }
 
 
+/* Frees every recipe (and its cost items) in all four lists. */
 void crafting_free() {
 	for (int i = 0; i < anvilRecipes.size; ++i) {
 		recipe_free(anvilRecipes.elements[i]);

@@ -1,3 +1,9 @@
+/*
+ * oven.c - Oven furniture (Java: com.mojang.ld22.entity.Oven).
+ *
+ * A placeable stationary entity; using it opens the crafting menu
+ * with the oven recipe list (cooking food).
+ */
 #include "oven.h"
 #include <stdlib.h>
 #include "furniture.h"
@@ -27,6 +33,10 @@ static const EntityVTable oven_vtable = {
 	.free           = (vt_free_fn) furniture_free,
 };
 
+/*
+ * Spawns an oven: furniture named "Oven", sprite 2, baked-clay
+ * palette and the small 3x2 collision box of crafting stations.
+ */
 void oven_create(Oven* oven){
 	char* name = malloc(strlen("Oven") + 1); //XXX ew
 	strcpy(name, "Oven");
@@ -41,6 +51,7 @@ void oven_create(Oven* oven){
 	oven->entity.yr = 2;
 }
 
+/* Opens the crafting menu on the oven recipe list; always succeeds. */
 char oven_use(Oven* oven, struct _Player* player, int attackDir){
 	crmenu_recipes = &ovenRecipes;
 	game_set_menu(mid_CRAFTING);

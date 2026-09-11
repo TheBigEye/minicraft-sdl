@@ -1,3 +1,7 @@
+/*
+ * grass_tile.h - Grass tile: the overworld's surface; spreads onto
+ *                dirt and can be tilled or dug.
+ */
 #ifndef LEVEL_TILE_GRASS_TILE_H_
 #define LEVEL_TILE_GRASS_TILE_H_
 
@@ -7,8 +11,10 @@ struct _Item;
 struct _Player;
 
 void grasstile_init(char id);
+/* Spreads grass onto an adjacent dirt tile now and then. */
 void grasstile_tick(TileID id, Level* level, int xt, int yt);
 void grasstile_render(TileID id, Screen* screen, Level* level, int x, int y);
+/* Shovel turns it to dirt, hoe to farmland; both may drop seeds. */
 char grasstile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
 
 #endif /* LEVEL_TILE_GRASS_TILE_H_ */

@@ -1,3 +1,9 @@
+/*
+ * tree_tile.c - Tree tile behavior (Java: tile.TreeTile).
+ *
+ * Takes 20 accumulated damage to fell; falling trees drop wood plus
+ * possible acorns, and any hit may shake an apple loose.
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../../entity/particle/smashparticle.h"
@@ -9,12 +15,16 @@
 #include <stdio.h>
 
 
+/* Registers the tree connection flags. */
 void treetile_init(TileID id) {
 	tile_init(id);
 	tiles[id].connectsToGrass = 1;
 }
 
 
+/* Internal chop-damage helper: may shake apples loose, shows smash
+ * and damage feedback, and at 20 damage fells the tree into grass
+ * dropping wood and possibly acorns. */
 void treetile_hurt2(TileID id, Level* level, int x, int y, int dmg) {
 	int count = random_next_int(&tiles[id].random, 10) == 0 ? 1 : 0;
 	Random* random = &tiles[id].random;
@@ -77,11 +87,14 @@ void treetile_hurt2(TileID id, Level* level, int x, int y, int dmg) {
 }
 
 
+/* Forwards mob damage into the chop-damage path. */
 void treetile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	treetile_hurt2(id, level, x, y, dmg);
 }
 
 
+/* Draws the canopy quadrants, showing bark sprites where neighboring
+ * tree tiles form the trunk. */
 void treetile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int col = getColor4(10, 30, 151, level->grassColor);
 	int barkCol1 = getColor4(10, 30, 430, level->grassColor);
@@ -123,6 +136,7 @@ void treetile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 }
 
 
+/* Heals one point of accumulated damage per tick, if any. */
 void treetile_tick(TileID id, Level* level, int xt, int yt) {
 	int damage = level_get_data(level, xt, yt);
 	if (damage) {
@@ -131,6 +145,8 @@ void treetile_tick(TileID id, Level* level, int xt, int yt) {
 }
 
 
+/* Axe interaction: each swing lands a random chunk of damage scaled
+ * by the tool level. */
 char treetile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir) {
 	if (item->id == TOOL) {
 		if (item->add.tool.type == AXE) {

@@ -1,3 +1,6 @@
+/*
+ * about_menu.c - About menu behavior (Java: AboutScreen).
+ */
 #include "about_menu.h"
 #include "menu.h"
 
@@ -23,6 +26,7 @@ const menu_vt aboutmenu_vt = {
 	&aboutmenu_init
 };
 
+/* Any confirm returns to the parent menu. */
 void aboutmenu_tick(){
 	if(attack.clicked || menu.clicked){
 		game_set_menu(menu_parent);
@@ -33,6 +37,7 @@ void aboutmenu_init(){
 
 }
 
+/* Draws the static credits lines. */
 void aboutmenu_render(Screen* screen){
 	clear_screen(screen, 0);
 	int col = getColor4(0, 333, 333, 333);

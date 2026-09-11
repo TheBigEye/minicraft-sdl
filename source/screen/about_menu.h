@@ -1,3 +1,6 @@
+/*
+ * about_menu.h - About menu (Java: AboutScreen): credits text.
+ */
 #ifndef SCREEN_ABOUT_MENU_H_
 #define SCREEN_ABOUT_MENU_H_
 #include "menu.h"

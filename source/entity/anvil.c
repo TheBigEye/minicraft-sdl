@@ -1,3 +1,9 @@
+/*
+ * anvil.c - Anvil furniture (Java: com.mojang.ld22.entity.Anvil).
+ *
+ * A placeable stationary entity; using it opens the crafting menu
+ * with the anvil recipe list (tool crafting and upgrades).
+ */
 #include "anvil.h"
 #include <stdlib.h>
 #include "player.h"
@@ -27,6 +33,10 @@ static const EntityVTable anvil_vtable = {
 	.free           = (vt_free_fn) furniture_free,
 };
 
+/*
+ * Spawns an anvil: furniture named "Anvil", sprite 0, iron palette
+ * and the small 3x2 collision box all crafting stations share.
+ */
 void anvil_create(Anvil* anvil){
 	char* name = malloc(strlen("Anvil") + 1); //XXX ew
 	strcpy(name, "Anvil");
@@ -41,6 +51,7 @@ void anvil_create(Anvil* anvil){
 	anvil->entity.yr = 2;
 }
 
+/* Opens the crafting menu on the anvil recipe list; always succeeds. */
 char anvil_use(Anvil* anvil, struct _Player* player, int attackDir){
 	crmenu_recipes = &anvilRecipes;
 	game_set_menu(mid_CRAFTING);

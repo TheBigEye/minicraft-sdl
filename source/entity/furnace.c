@@ -1,3 +1,9 @@
+/*
+ * furnace.c - Furnace furniture (Java: com.mojang.ld22.entity.Furnace).
+ *
+ * A placeable stationary entity; using it opens the crafting menu
+ * with the furnace recipe list (smelting ore into metal).
+ */
 #include "furnace.h"
 #include <stdlib.h>
 #include "../crafting/crafting.h"
@@ -26,6 +32,10 @@ static const EntityVTable furnace_vtable = {
 	.free           = (vt_free_fn) furniture_free,
 };
 
+/*
+ * Spawns a furnace: furniture named "Furnace", sprite 3, stone/fire
+ * palette and the small 3x2 collision box of crafting stations.
+ */
 void furnace_create(Furnace* furnace){
 	char* name = malloc(strlen("Furnace") + 1); //XXX ew
 	strcpy(name, "Furnace");
@@ -40,6 +50,7 @@ void furnace_create(Furnace* furnace){
 	furnace->entity.yr = 2;
 }
 
+/* Opens the crafting menu on the furnace recipe list; always succeeds. */
 char furnace_use(Furnace* furnace, struct _Player* player, int attackDir){
 	crmenu_recipes = &furnaceRecipes;
 	game_set_menu(mid_CRAFTING);

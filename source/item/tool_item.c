@@ -1,3 +1,6 @@
+/*
+ * tool_item.c - Tool item behavior (Java: ToolItem).
+ */
 #include "tool_item.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +32,8 @@ const char* LEVEL_NAMES[] = {
 };
 
 
+/* Tags the item as a tool of the given type and material level,
+ * seeding its bonus-roll RNG from the clock. */
 void toolitem_create(Item* item, ToolType type, int level){
 	// item_create(item);
 	item->id = TOOL;
@@ -38,11 +43,13 @@ void toolitem_create(Item* item, ToolType type, int level){
 }
 
 
+/* Color comes from the material tier table. */
 int toolitem_getColor(Item* item) {
 	return LEVEL_COLORS[item->add.tool.level];
 }
 
 
+/* Each tool type occupies one sprite in the tool row. */
 int toolitem_getSprite(Item* item) {
 	return item->add.tool.type + 5 * 32;
 }
@@ -62,11 +69,14 @@ void toolitem_renderInventory(Item* item, Screen* screen, int x, int y) {
 }
 
 
+/* Composes "Material Type", e.g. "Iron Pick". */
 void toolitem_getName(Item* item, char* buf) {
 	sprintf(buf, "%s %s", LEVEL_NAMES[item->add.tool.level], type_getName(item->add.tool.type));
 }
 
 
+/* Axes and swords add level-scaled random damage; other tools add
+ * the bare minimum. */
 int toolitem_getAttackDamageBonus(Item* item, Entity* e) {
 	int lvl = item->add.tool.level;
 	Random* rand = &item->add.tool.random;
@@ -84,6 +94,7 @@ int toolitem_getAttackDamageBonus(Item* item, Entity* e) {
 }
 
 
+/* Only an identical tool (same type and level) matches. */
 char toolitem_matches(Item* item, Item* item2){
 	if (item2->id == TOOL) {
 		if (item2->add.tool.type != item->add.tool.type) return 0;

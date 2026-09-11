@@ -1,3 +1,6 @@
+/*
+ * sand_tile.c - Sand tile behavior (Java: tile.SandTile).
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../../item/item.h"
@@ -5,11 +8,13 @@
 #include "../../gfx/color.h"
 #include "../../item/resourceitem.h"
 
+/* Registers the sand connection flags. */
 void sandtile_init(TileID id){
 	tile_init(id);
 	tiles[id].connectsToSand = 1;
 }
 
+/* Shovel digs the sand into dirt, dropping a sand resource. */
 char sandtile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
 
 	if(item->id == TOOL){
@@ -29,11 +34,14 @@ char sandtile_interact(TileID id, Level* level, int xt, int yt, Player* player, 
 	return 0;
 }
 
+/* Footprint data fades one step per tick. */
 void sandtile_tick(TileID id, Level* level, int xt, int yt){
 	int damage = level_get_data(level, xt, yt);
 	if(damage) level_set_data(level, xt, yt, damage - 1);
 }
 
+/* Draws the four sand quadrants, showing footprint sprites where the
+ * data byte marks recently walked tiles. */
 void sandtile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	int col = getColor4(level->sandColor + 2, level->sandColor, level->sandColor - 110, level->sandColor - 110);
 	int transitionColor = getColor4(level->sandColor - 110, level->sandColor, level->sandColor - 110, level->dirtColor);

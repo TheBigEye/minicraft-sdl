@@ -1,3 +1,6 @@
+/*
+ * wheat_tile.c - Wheat tile behavior (Java: tile.WheatTile).
+ */
 #include "tile.h"
 #include <stdlib.h>
 #include "../../entity/player.h"
@@ -8,11 +11,14 @@
 
 static Random trandom;
 
+/* Seeds the shared growth RNG from the current millisecond time. */
 void wheat_tile_init(TileID id) {
 	tile_init(id);
 	random_set_seed(&trandom, getTimeUS() / 1000);
 }
 
+/* Shovel clears the crop back to plain dirt; harvesting is done by
+ * attacking or walking over ripe wheat instead. */
 char wheattile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir) {
 
 	if(item->id == TOOL){
@@ -27,6 +33,8 @@ char wheattile_interact(TileID id, Level* level, int xt, int yt, struct _Player*
 	return 0;
 }
 
+/* Harvests the crop: always drops up to two seeds, plus wheat scaled
+ * by the age (full yield at 50), then reverts the tile to dirt. */
 void wheattile_harvest(TileID id, Level* level, int x, int y) {
 	int age = level_get_data(level, x, y);
 	Random* random = &tiles[id].random;
@@ -61,10 +69,13 @@ void wheattile_harvest(TileID id, Level* level, int x, int y) {
 	level_set_tile(level, x, y, DIRT, 0);
 }
 
+/* Any attack harvests the crop. */
 void wheattile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
 	wheattile_harvest(id, level, x, y);
 }
 
+/* Draws the crop sprite for the current growth stage, golden once
+ * fully ripe (age 50). */
 void wheattile_render(TileID id, Screen* screen, Level* level, int x, int y){
 	int age = level_get_data(level, x, y);
 	int col = getColor4(level->dirtColor - 121, level->dirtColor - 11, level->dirtColor, 50);
@@ -82,6 +93,7 @@ void wheattile_render(TileID id, Screen* screen, Level* level, int x, int y){
 }
 
 
+/* Grows the crop on half the ticks, up to age 50. */
 void wheattile_tick(TileID id, Level* level, int xt, int yt){
 	if(random_next_int(&trandom, 2) == 0) return;
 

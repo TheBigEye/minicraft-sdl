@@ -1,3 +1,9 @@
+/*
+ * spark.c - Spark projectile (Java: entity.Spark).
+ *
+ * Short-lived projectile the Air Wizard fires; hurts any mob it
+ * touches except the wizard itself, then expires.
+ */
 #include "airwizard.h"
 #include "spark.h"
 #include "../gfx/screen.h"
@@ -31,6 +37,8 @@ static const EntityVTable spark_vtable = {
 };
 
 
+/* Spawns the spark at the owner's position with the given velocity
+ * and a lifetime of ~10 seconds plus a random extra. */
 void spark_create(Spark* spark, AirWizard* owner, double xa, double ya) {
 	entity_create(&spark->entity);
 	spark->entity.vt = &spark_vtable;
@@ -48,6 +56,8 @@ void spark_create(Spark* spark, AirWizard* owner, double xa, double ya) {
 }
 
 
+/* Ages and moves the spark; hurts mobs it overlaps (excluding the
+ * Air Wizard) for 1 damage; removes itself at end of life. */
 void spark_tick(Spark* spark) {
 	++spark->time;
 	if (spark->time >= spark->lifeTime) {
@@ -74,6 +84,8 @@ void spark_tick(Spark* spark) {
 }
 
 
+/* Draws the spark as two flickering tiles; blinks during the last
+ * seconds before expiring. */
 void spark_render(Spark* spark, Screen* screen){
 	if (spark->time >= spark->lifeTime - 6 * 20) {
 		if (spark->time / 6 % 2 == 0) return;

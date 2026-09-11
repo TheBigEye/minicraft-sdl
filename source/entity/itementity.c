@@ -1,3 +1,10 @@
+/*
+ * itementity.c - ItemEntity (Java: entity.ItemEntity).
+ *
+ * The physical form of a dropped item: pops with a small ballistic
+ * arc, rests on the ground, expires after ~10 seconds and can be
+ * collected by players walking over it.
+ */
 #include "itementity.h"
 #include "../gfx/color.h"
 #include "../sound/sound.h"
@@ -35,6 +42,8 @@ static const EntityVTable itementity_vtable = {
 };
 
 
+/* Spawns the dropped item at (x, y) with a random pop velocity and
+ * a lifetime of 10 seconds plus up to one extra. */
 void itementity_create(ItemEntity* entity, Item item, int x, int y){
 	entity_create(&entity->entity);
 	entity->entity.vt = &itementity_vtable;
@@ -62,6 +71,8 @@ void itementity_create(ItemEntity* entity, Item item, int x, int y){
 }
 
 
+/* Ages and moves the dropped item: ballistic pop with friction,
+ * then rest; removes itself when the lifetime expires. */
 void itementity_tick(ItemEntity* item){
 	++item->time;
 	if (item->time >= item->lifeTime) {
@@ -99,6 +110,7 @@ void itementity_tick(ItemEntity* item){
 }
 
 
+/* Draws the item's icon with a small vertical bob and shadow. */
 void itementity_render(ItemEntity* item, Screen* screen){
 	if (item->time >= item->lifeTime - 6 * 20) {
 		if(item->time / 6 % 2 == 0) return;
@@ -112,6 +124,8 @@ void itementity_render(ItemEntity* item, Screen* screen){
 }
 
 
+/* Pickup (Java: ItemEntity.take): plays the pickup sound, awards a
+ * score point, lets the item react via onTake and removes it. */
 void itementity_take(ItemEntity* item, Player* player){
 	sound_play(SND_PICKUP); // Sound.pickup.play()
 

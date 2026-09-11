@@ -1,3 +1,9 @@
+/*
+ * hard_rock_tile.c - Hard rock tile behavior (Java: tile.HardRockTile).
+ *
+ * Takes 200 accumulated damage to break, which only the gem pickaxe
+ * can inflict; it heals back over time and drops stone plus coal.
+ */
 #include "tile.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +16,7 @@
 #include "../../item/resourceitem.h"
 
 
+/* Heals one point of accumulated damage per tick, if any. */
 void hardrocktile_tick(TileID id, Level* level, int xt, int yt) {
 	int damage = level_get_data(level, xt, yt);
 	if (damage) {
@@ -18,6 +25,8 @@ void hardrocktile_tick(TileID id, Level* level, int xt, int yt) {
 }
 
 
+/* Internal chip-damage helper: shows smash/damage feedback and, at
+ * 200 accumulated damage, breaks into dirt dropping stone and coal. */
 void hardrocktile_hurt_(TileID id, Level* level, int x, int y, int dmg) {
 	int damage = level_get_data(level, x, y) + dmg;
 
@@ -75,6 +84,8 @@ void hardrocktile_hurt_(TileID id, Level* level, int x, int y, int dmg) {
 }
 
 
+/* Only the gem pickaxe (level 4) can chip the rock; each hit lands a
+ * random chunk of damage scaled by the tool level. */
 char hardrocktile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, Item* item, int attackDir) {
 	if (item->id == TOOL) {
 		if (item->add.tool.type == PICKAXE && item->add.tool.level == 4) {
@@ -88,11 +99,13 @@ char hardrocktile_interact(TileID id, Level* level, int xt, int yt, struct _Play
 }
 
 
+/* Generic attacks do no damage here; only feedback particles show. */
 void hardrocktile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
 	hardrocktile_hurt_(id, level, x, y, 0);
 }
 
 
+/* Draws the four rock quadrants with dark edges against other tiles. */
 void hardrocktile_render(TileID id, Screen* screen, Level* level, int x, int y) {
 	int col = getColor4(334, 334, 223, 223);
 	int transitionColor = getColor4(001, 334, 445, level->dirtColor);

@@ -1,3 +1,10 @@
+/*
+ * mob.c - Shared behavior of all living entities (Java: Mob class body).
+ *
+ * Health bookkeeping, knockback, swimming, spawn placement and the
+ * hurt/die flow live here; concrete mobs (Player, Slime, Zombie,
+ * AirWizard) override only what their Java classes override.
+ */
 #include "mob.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +37,7 @@ const EntityVTable mob_vtable = {
 };
 
 
+/* Base mob initialization; subclasses call this then set their vtable. */
 void mob_create(Mob* mob){
 	entity_create(&mob->entity);
 	mob->entity.vt = &mob_vtable; /* subclasses override with their own vtable */
@@ -46,6 +54,7 @@ void mob_create(Mob* mob){
 }
 
 
+/* Class-tag test for the four Mob subclasses (Java: instanceof Mob). */
 char entity_ismob(Entity* entity) {
 	/* The C equivalent of Java's `e instanceof Mob` checks. */
 	switch (entity->type) {
@@ -60,6 +69,12 @@ char entity_ismob(Entity* entity) {
 }
 
 
+/*
+ * Applies damage to the mob (Java: Mob.doHurt). While the hurt cooldown
+ * runs the mob is invulnerable. Plays monsterHurt when the player is
+ * within 80 pixels, spawns a red damage number, subtracts health and
+ * queues knockback opposite to the attack direction.
+ */
 void mob_doHurt(Mob* mob, int damage, int attackDir) {
 	if (mob->hurtTime > 0) return;
 
@@ -90,6 +105,8 @@ void mob_doHurt(Mob* mob, int damage, int attackDir) {
 }
 
 
+/* Entry point for mob-on-mob damage; dispatches to the virtual doHurt
+ * so Player's override (invulnerability frames, death) applies. */
 void mob_hurt(Mob* mob, Mob* by, int damage, int attackDir) {
 	(void) by;
 	/* Java: doHurt() is virtual - Player overrides it. */
@@ -97,6 +114,8 @@ void mob_hurt(Mob* mob, Mob* by, int damage, int attackDir) {
 }
 
 
+/* Damage dealt by the tile the mob stands on (lava, cactus...); the
+ * attack direction is the opposite of the mob's facing, as in Java. */
 void mob_hurtTile(Mob* mob, TileID tile, int x, int y, int damage) {
 	(void) tile; (void) x; (void) y;
 	int attackDir = mob->dir ^ 1;
@@ -104,12 +123,21 @@ void mob_hurtTile(Mob* mob, TileID tile, int x, int y, int damage) {
 }
 
 
+/* Collision query: whether `entity` stops this mob's movement. The
+ * decision is delegated to the other entity, mirroring Java. */
 char mob_blocks(Mob* mob, Entity* entity) {
 	/* Java: Mob.blocks(e) { return e.isBlockableBy(this); } */
 	return entity->vt->isBlockableBy(entity, mob);
 }
 
 
+/*
+ * Tries one random spawn position (Java: Mob.findStartPos): rejects
+ * spots within 80 pixels of the player and spots whose neighborhood
+ * (monsterDensity tiles around) already holds entities, then requires
+ * the tile itself to let this mob pass. Returns success; the caller
+ * (level spawning) retries until it succeeds.
+ */
 char mob_findStartPos(Mob* mob, Level* level) {
 	Random* random = &mob->entity.random;
 	int x = random_next_int(random, level->w);
@@ -148,11 +176,18 @@ char mob_findStartPos(Mob* mob, Level* level) {
 }
 
 
+/* Base death: just removes the entity; Player and AirWizard override
+ * it to drop loot, play sounds or end the game. */
 void mob_die(Mob* mob){
 	entity_remove(&mob->entity);
 }
 
 
+/*
+ * Per-tick update shared by all mobs (Java: Mob.tick): lava under the
+ * mob hurts it, zero or less health triggers the virtual die(), and
+ * the hurt invulnerability cooldown decays.
+ */
 void mob_tick(Mob* mob) {
 	++mob->tickTime;
 
@@ -171,12 +206,15 @@ void mob_tick(Mob* mob) {
 }
 
 
+/* Swimming test: the tile under the mob's center is water or lava. */
 uint8_t mob_isSwimming(Mob* mob) {
 	TileID tile = level_get_tile(mob->entity.level, mob->entity.x >> 4, mob->entity.y >> 4);
 	return tile == WATER || tile == LAVA;
 }
 
 
+/* Heals the mob (not while recently hurt), shows a green number popup
+ * and clamps health at maxHealth, as Java's Mob.heal(). */
 void mob_heal(Mob* mob, int heal){
 	if (mob->hurtTime > 0) {
         return;
@@ -196,6 +234,13 @@ void mob_heal(Mob* mob, int heal){
 }
 
 
+/*
+ * Mob movement (Java: Mob.move): swimming halves the effective speed
+ * (every other tick is skipped), pending knockback is applied one
+ * pixel at a time, hurt mobs cannot walk, and the walking direction
+ * and animation counter update from the requested velocity before
+ * delegating the collision work to entity_move().
+ */
 uint8_t mob_move(Mob* mob, int xa, int ya) {
 	if (mob->entity.vt->isSwimming(&mob->entity)) {
 		if (mob->swimTimer++ % 2 == 0) {
