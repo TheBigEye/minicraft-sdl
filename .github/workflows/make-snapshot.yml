@@ -1,0 +1,291 @@
+# Builds a development snapshot (pre-release).
+#
+# Dispatch with a version like v1.1.0-dev1. The workflow validates the
+# format, the duplicate-tag case and that the base X.Y.Z matches
+# source/version.h, then generates a changelog with the commits since
+# the previous tag of the same series (vX.Y.Z-dev(N-1)), or since the
+# last stable release when this is the first dev of the series.
+# Finally it builds the 8 platform/backend/arch variants and publishes
+# them as a GitHub pre-release tagged with the given version.
+name: Make snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Pre-release version (vX.Y.Z-devN, e.g. v1.1.0-dev1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# Only one publishing workflow at a time (group shared with make-release.yml).
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate version & changelog
+    runs-on: ubuntu-latest
+    outputs:
+      file_version: ${{ steps.meta.outputs.file_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history + tags, needed for the changelog
+
+      - name: Validate input and generate changelog
+        id: meta
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          # --- 1. Format: vX.Y.Z-devN ---------------------------------------
+          if ! printf '%s\n' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-dev[0-9]+$'; then
+            echo "::error::Invalid version '$VERSION' - expected vX.Y.Z-devN (e.g. v1.1.0-dev1)"
+            exit 1
+          fi
+          BASE="${VERSION%-dev*}"
+          DEVN="${VERSION##*-dev}"
+
+          # --- 2. Duplicate tag ----------------------------------------------
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "::error::Tag $VERSION already exists - use the next dev number"
+            exit 1
+          fi
+
+          # --- 3. Base version must match source/version.h -------------------
+          HVER="$(sed -n \
+            -e 's/^#define MAJOR \([0-9][0-9]*\).*/\1./p' \
+            -e 's/^#define MINOR \([0-9][0-9]*\).*/\1./p' \
+            -e 's/^#define PATCH \([0-9][0-9]*\).*/\1/p' source/version.h | tr -d '\n')"
+          if [ "v$HVER" != "$BASE" ]; then
+            echo "::error::$VERSION does not match source/version.h (v$HVER) - bump the header first"
+            exit 1
+          fi
+
+          # --- 4. Changelog start point --------------------------------------
+          # Highest existing vX.Y.Z-devM tag with M < N; when there is no
+          # earlier pre-release of this series, fall back to the newest
+          # stable tag (and to the whole history when no stable exists).
+          PREV=""
+          for t in $(git tag --list "${BASE}-dev*" | sort -V); do
+            n="${t##*-dev}"
+            if [ "$n" -lt "$DEVN" ]; then PREV="$t"; fi
+          done
+          if [ -z "$PREV" ]; then
+            PREV="$(git tag --list 'v*' | grep -Ev -- '-dev[0-9]+$' | sort -V | tail -n1 || true)"
+          fi
+          if [ -n "$PREV" ]; then RANGE="$PREV..HEAD"; else RANGE="HEAD"; fi
+          echo "Changelog range: $RANGE"
+
+          # --- 5. Changelog (grouped by the leading word of each subject) ----
+          added=""; changed=""; fixed=""; removed=""; count=0
+          while IFS= read -r line || [ -n "$line" ]; do
+            [ -z "$line" ] && continue
+            count=$((count + 1))
+            hash="${line%%	*}"
+            subject="${line#*	}"
+            entry="- ${subject} (${hash})"
+            first="$(printf '%s' "$subject" | awk '{print tolower($1)}' | tr -d ':')"
+            case "$first" in
+              add|adds|added|feat|feature|implement|implements|introduce|include|includes|support)
+                added="${added}${entry}"$'\n' ;;
+              fix|fixes|fixed|repair|resolve|correct)
+                fixed="${fixed}${entry}"$'\n' ;;
+              remove|removes|removed|delete|drop|revert)
+                removed="${removed}${entry}"$'\n' ;;
+              *)
+                changed="${changed}${entry}"$'\n' ;;
+            esac
+          done < <(git log --no-merges --reverse --pretty=tformat:'%h	%s' "$RANGE")
+
+          {
+            echo "## Changes"
+            echo
+            if [ "$count" -eq 0 ]; then
+              echo "_No commits since ${PREV:-the beginning of history}._"
+            else
+              if [ -n "$added" ];   then echo "### Added";   printf '%s\n' "$added";   fi
+              if [ -n "$changed" ]; then echo "### Changed"; printf '%s\n' "$changed"; fi
+              if [ -n "$fixed" ];   then echo "### Fixed";   printf '%s\n' "$fixed";   fi
+              if [ -n "$removed" ]; then echo "### Removed"; printf '%s\n' "$removed"; fi
+            fi
+            echo
+            echo "---"
+            echo "Development snapshot **$DEVN** of the \`$BASE\` series - builds from this series may be unstable."
+            if [ -n "$PREV" ]; then
+              echo
+              echo "Commits since \`$PREV\` - [compare](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV}...${VERSION})"
+            fi
+          } > changelog.md
+
+          echo "file_version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+          echo "Snapshot $VERSION - changelog from ${PREV:-<root>}, $count commits" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: changelog.md
+
+  build:
+    name: Build ${{ matrix.backend }}-${{ matrix.arch }} (${{ matrix.os_name }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---- Windows (MSYS2/MinGW, static exe, with sound) ----
+          - os: windows-latest
+            os_name: Windows
+            kind: msys2
+            msystem: MINGW64
+            packages: mingw-w64-x86_64-toolchain mingw-w64-x86_64-SDL2
+            cc: gcc
+            make_args: ""
+            backend: SDL2
+            arch: x64
+            ext: exe
+          - os: windows-latest
+            os_name: Windows
+            kind: msys2
+            msystem: MINGW64
+            packages: mingw-w64-x86_64-toolchain mingw-w64-x86_64-SDL
+            cc: gcc
+            make_args: SDL=1
+            backend: SDL1
+            arch: x64
+            ext: exe
+          - os: windows-latest
+            os_name: Windows
+            kind: msys2
+            msystem: MINGW32
+            packages: mingw-w32-i686-toolchain mingw-w32-i686-SDL2
+            cc: gcc
+            make_args: ""
+            backend: SDL2
+            arch: i686
+            ext: exe
+          - os: windows-latest
+            os_name: Windows
+            kind: msys2
+            msystem: MINGW32
+            packages: mingw-w32-i686-toolchain mingw-w32-i686-SDL
+            cc: gcc
+            make_args: SDL=1
+            backend: SDL1
+            arch: i686
+            ext: exe
+          # ---- Linux (framebuffer builds: fbcon for SDL1, KMSDRM for SDL2) ----
+          - os: ubuntu-latest
+            os_name: Linux
+            kind: apt
+            apt: libsdl2-dev
+            multiarch: false
+            cc: gcc
+            make_args: FB=1
+            backend: SDL2
+            arch: x64
+            ext: elf
+          - os: ubuntu-latest
+            os_name: Linux
+            kind: apt
+            apt: libsdl1.2-dev
+            multiarch: false
+            cc: gcc
+            make_args: SDL=1 FB=1
+            backend: SDL1
+            arch: x64
+            ext: elf
+          - os: ubuntu-latest
+            os_name: Linux
+            kind: apt
+            apt: libsdl2-dev:i386
+            multiarch: true
+            cc: gcc -m32
+            make_args: FB=1
+            backend: SDL2
+            arch: i686
+            ext: elf
+          - os: ubuntu-latest
+            os_name: Linux
+            kind: apt
+            apt: libsdl1.2-dev:i386
+            multiarch: true
+            cc: gcc -m32
+            make_args: SDL=1 FB=1
+            backend: SDL1
+            arch: i686
+            ext: elf
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain (MSYS2)
+        if: matrix.kind == 'msys2'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            base-devel
+            ${{ matrix.packages }}
+
+      - name: Install dependencies (Linux)
+        if: matrix.kind == 'apt'
+        run: |
+          if [ "${{ matrix.multiarch }}" = "true" ]; then
+            sudo dpkg --add-architecture i386
+          fi
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+
+      - name: Build
+        if: matrix.kind == 'apt'
+        run: make CC="${{ matrix.cc }}" ${{ matrix.make_args }} -j"$(nproc)"
+
+      - name: Build (MSYS2)
+        if: matrix.kind == 'msys2'
+        shell: msys2 {0}
+        run: make CC="${{ matrix.cc }}" ${{ matrix.make_args }} -j"$(nproc)"
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          src="game"
+          if [ "${{ matrix.ext }}" = "exe" ]; then src="game.exe"; fi
+          mv "$src" "minicraft_${{ needs.prepare.outputs.file_version }}_${{ matrix.backend }}-${{ matrix.arch }}.${{ matrix.ext }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minicraft_${{ needs.prepare.outputs.file_version }}_${{ matrix.backend }}-${{ matrix.arch }}.${{ matrix.ext }}
+          path: minicraft_*
+
+  publish:
+    name: Publish pre-release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: minicraft_*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: changelog
+          path: meta
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          body_path: meta/changelog.md
+          prerelease: true
+          fail_on_unmatched_files: true
+          files: dist/*

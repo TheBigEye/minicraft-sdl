@@ -23,6 +23,7 @@
 #endif
 
 #include "game.h"
+#include "version.h"
 #include "inputhandler.h"
 #include "utils/arraylist.h"
 #include "utils/utils.h"
@@ -540,16 +541,16 @@ int main(int argc, char** argv) {
 	}
 	surface = window;   /* In SDL1 the returned surface IS the display surface */
 
-	SDL_WM_SetCaption("Minicraft", NULL);
+	SDL_WM_SetCaption("Minicraft " VERSION, NULL);
 #else
-	window = SDL_CreateWindow("Minicraft", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, winWidth, winHeight, 0);
+	window = SDL_CreateWindow("Minicraft " VERSION, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, winWidth, winHeight, 0);
 	if (!window) {
 		printf("Failed to create window: %s\n", SDL_GetError());
 		ret = 1;
 		goto QUIT;
 	}
 
-	SDL_SetWindowTitle(window, "Minicraft");
+	SDL_SetWindowTitle(window, "Minicraft " VERSION);
 
 	// Get the window's surface
 	surface = SDL_GetWindowSurface(window);
