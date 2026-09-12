@@ -165,7 +165,7 @@ jobs:
             os_name: Windows
             kind: msys2
             msystem: MINGW32
-            packages: mingw-w32-i686-toolchain mingw-w32-i686-SDL2
+            packages: mingw-w64-i686-toolchain mingw-w64-i686-SDL2
             cc: gcc
             make_args: ""
             backend: SDL2
@@ -175,7 +175,7 @@ jobs:
             os_name: Windows
             kind: msys2
             msystem: MINGW32
-            packages: mingw-w32-i686-toolchain mingw-w32-i686-SDL
+            packages: mingw-w64-i686-toolchain mingw-w64-i686-SDL
             cc: gcc
             make_args: SDL=1
             backend: SDL1
@@ -186,7 +186,6 @@ jobs:
             os_name: Linux
             kind: apt
             apt: libsdl2-dev
-            multiarch: false
             cc: gcc
             make_args: FB=1
             backend: SDL2
@@ -196,7 +195,6 @@ jobs:
             os_name: Linux
             kind: apt
             apt: libsdl1.2-dev
-            multiarch: false
             cc: gcc
             make_args: SDL=1 FB=1
             backend: SDL1
@@ -204,9 +202,8 @@ jobs:
             ext: elf
           - os: ubuntu-latest
             os_name: Linux
-            kind: apt
-            apt: libsdl2-dev:i386
-            multiarch: true
+            kind: sysroot
+            debs: libsdl2-dev libsdl2-2.0-0
             cc: gcc -m32
             make_args: FB=1
             backend: SDL2
@@ -214,9 +211,8 @@ jobs:
             ext: elf
           - os: ubuntu-latest
             os_name: Linux
-            kind: apt
-            apt: libsdl1.2-dev:i386
-            multiarch: true
+            kind: sysroot
+            debs: libsdl1.2-dev libsdl1.2debian libsdl2-2.0-0
             cc: gcc -m32
             make_args: SDL=1 FB=1
             backend: SDL1
@@ -238,14 +234,37 @@ jobs:
       - name: Install dependencies (Linux)
         if: matrix.kind == 'apt'
         run: |
-          if [ "${{ matrix.multiarch }}" = "true" ]; then
-            sudo dpkg --add-architecture i386
-          fi
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.apt }}
 
       - name: Build
         if: matrix.kind == 'apt'
+        run: make CC="${{ matrix.cc }}" ${{ matrix.make_args }} -j"$(nproc)"
+
+      # i386 SDL dev packages cannot be installed with apt on the runners:
+      # their glib dependency chain has no i386 build on ubuntu-24.04. The
+      # .debs are downloaded and extracted into a local sysroot instead;
+      # gcc-multilib provides the 32-bit C runtime and headers.
+      - name: Install dependencies (Linux i686)
+        if: matrix.kind == 'sysroot'
+        run: |
+          set -euo pipefail
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib
+          mkdir -p sysroot
+          for p in ${{ matrix.debs }}; do
+            apt-get download "$p:i386"
+          done
+          for d in *.deb; do
+            dpkg -x "$d" sysroot
+          done
+
+      - name: Build (Linux i686)
+        if: matrix.kind == 'sysroot'
+        env:
+          C_INCLUDE_PATH: ${{ github.workspace }}/sysroot/usr/include:${{ github.workspace }}/sysroot/usr/include/i386-linux-gnu
+          LIBRARY_PATH: ${{ github.workspace }}/sysroot/usr/lib/i386-linux-gnu
         run: make CC="${{ matrix.cc }}" ${{ matrix.make_args }} -j"$(nproc)"
 
       - name: Build (MSYS2)
