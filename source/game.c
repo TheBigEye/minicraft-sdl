@@ -569,6 +569,7 @@ int main(int argc, char** argv) {
     int ticks = 0, frames = 0;
 
     int* prevBuf = null;
+    int prev_buf_count = 0;   /* game_screen.w * game_screen.h, set later */
     int ret = 0;
     int winHeight = HEIGHT * SCALE;
     int winWidth = WIDTH * SCALE;
@@ -707,14 +708,36 @@ int main(int argc, char** argv) {
     }
     #endif
 
-    prevBuf = new_array(int, game_screen.h * game_screen.w);
+    /*
+     * One entry per screen pixel. The dimensions are checked and the
+     * product is validated before it is used as an allocation size:
+     * `int * int` is not provably positive, and casting a negative product
+     * to size_t trips the -Walloc-size-larger-than= that GCC enables by
+     * default. See level_create() for the longer version of this note.
+     */
+    if (game_screen.w <= 0 || game_screen.h <= 0) {
+        LOG_ERROR("invalid screen size %dx%d", game_screen.w, game_screen.h);
+        ret = 1;
+        goto QUIT;
+    }
+
+    prev_buf_count = game_screen.w * game_screen.h;
+
+    if (prev_buf_count <= 0) {
+        LOG_ERROR("%dx%d overflows the screen pixel count",
+                  game_screen.w, game_screen.h);
+        ret = 1;
+        goto QUIT;
+    }
+
+    prevBuf = new_array(int, prev_buf_count);
     if (!prevBuf) {
         LOG_ERROR("failed to allocate prevBuf memory");
         ret = 1;
         goto QUIT;
     }
 
-    for (int i = 0; i < game_screen.h * game_screen.w; ++i) {
+    for (int i = 0; i < prev_buf_count; ++i) {
         prevBuf[i] = 0x000000;
     }
 

@@ -223,24 +223,39 @@ else
     CFLAGS += -Wall -Wextra -O2
 endif
 
-# ---- Avisos -------------------------------------------------------------
-# Conjunto "nivel 1": -Wall -Wextra mas los flags que no cuestan trabajo y
-# cazan bugs reales (macros sin definir, VLAs, desreferencias de NULL
-# evidentes, saltos que se saltan una inicializacion, formatos dudosos...).
+# ---- Warnings -----------------------------------------------------------
+# The "level 1" set: -Wall -Wextra plus the flags that cost no work and do
+# catch real bugs (undefined macros, VLAs, obvious NULL dereferences, jumps
+# that skip an initialization, dubious formats...).
+#
+# -Wno-alloc-size-larger-than is the one subtraction, and it is a
+# subtraction from GCC's OWN defaults, not from the set above: GCC turns
+# -Walloc-size-larger-than=PTRDIFF_MAX on by itself. Its value-range
+# analysis cannot prove that an `int * int` is positive even when the two
+# operands were validated on the line before, so casting the product to
+# size_t looks to it like an astronomical allocation. Every dimension
+# product in the tree (level_create, screen_create, prevBuf, the three
+# levelgen maps) is that same shape. GCC 15 sharpened the analysis enough
+# to start failing the build on it.
+#
+# The dimensions are checked at the constructors anyway, which is what
+# actually stops a bogus allocation at run time; this flag only stops the
+# compiler from second-guessing a product it cannot bound.
 WARNINGS ?= -Wall -Wextra -Wundef -Wvla -Wnull-dereference \
-            -Wjump-misses-init -Wunused-macros -Wformat=2
+            -Wjump-misses-init -Wunused-macros -Wformat=2 \
+            -Wno-alloc-size-larger-than
 CFLAGS += $(WARNINGS)
 
-# Regla de cero warnings: -Werror activo por defecto.
-# `make WERROR=0` lo desactiva para toolchains exoticos / GCC muy viejos.
+# The zero-warnings rule: -Werror on by default.
+# `make WERROR=0` turns it off for exotic toolchains / very old GCC.
 WERROR ?= 1
 ifeq ($(WERROR),1)
     CFLAGS += -Werror
 endif
 
 # ---- Logging (source/log.h) ---------------------------------------------
-#   LOG=0 silencio | 1 errores | 2 +avisos | 3 +info | 4 +traza
-#   Release arranca en 2 y DEBUG=1 en 4 (todo visible).
+#   LOG=0 silent | 1 errors | 2 +warnings | 3 +info | 4 +trace
+#   Release starts at 2 and DEBUG=1 at 4 (everything visible).
 ifeq ($(DEBUG),1)
     LOG ?= 4
     CFLAGS += -DDEBUG_BUILD

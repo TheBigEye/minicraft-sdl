@@ -7,6 +7,8 @@
  */
 #include "screen.h"
 
+#include "../log.h"
+
 #include <stdlib.h>
 
 /* The 4x4 threshold matrix used to dither darkness. */
@@ -15,6 +17,24 @@ const int dither[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
 
 /* Constructor: installs the methods, allocates the buffer and clears it. */
 PUBLIC void screen_create(Screen* this, int w, int h, const SpriteSheet* sheet) {
+    /*
+     * The pixel buffer is w * h bytes. The dimensions are checked first:
+     * `int * int` is not provably positive, and casting a negative product
+     * to size_t trips the -Walloc-size-larger-than= that GCC enables by
+     * default. See level_create() for the longer version of this note.
+     */
+    if (w <= 0 || h <= 0) {
+        LOG_ERROR("screen_create: invalid dimensions %dx%d", w, h);
+        return;
+    }
+
+    int pixels_count = w * h;
+
+    if (pixels_count <= 0) {
+        LOG_ERROR("screen_create: %dx%d overflows the pixel count", w, h);
+        return;
+    }
+
     this->render       = screen_render;
     this->clear        = screen_clear;
     this->set_offset   = screen_set_offset;
@@ -26,9 +46,9 @@ PUBLIC void screen_create(Screen* this, int w, int h, const SpriteSheet* sheet) 
     this->w     = w;
     this->h     = h;
 
-    this->pixels = new_array(unsigned char, w * h);
+    this->pixels = new_array(unsigned char, pixels_count);
 
-    this->pixelsSize = w * h;
+    this->pixelsSize = pixels_count;
     this->xOffset    = 0;
     this->yOffset    = 0;
 }

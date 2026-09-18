@@ -41,6 +41,28 @@ PRIVATE int level_sprite_sorter(const void* a, const void* b) {
  * surface or dirt underground so that they stay reachable.
  */
 PUBLIC void level_create(Level* this, int w, int h, int depth, Level* parent) {
+    /*
+     * Both grids are w * h elements, so the dimensions are checked before
+     * anything is allocated. `int * int` is not provably positive, and
+     * casting a negative product to size_t turns it into an astronomical
+     * allocation size, which trips the -Walloc-size-larger-than= that GCC
+     * enables by default (it started firing on this very line with the
+     * sharper value-range analysis of GCC 15). Every caller passes 128;
+     * the two checks are what make that provable instead of merely true,
+     * and the second one also catches an overflowing product.
+     */
+    if (w <= 0 || h <= 0) {
+        LOG_ERROR("level_create: invalid dimensions %dx%d", w, h);
+        return;
+    }
+
+    int tiles_count = w * h;
+
+    if (tiles_count <= 0) {
+        LOG_ERROR("level_create: %dx%d overflows the tile count", w, h);
+        return;
+    }
+
     this->render_background = level_render_background;
     this->render_sprites    = level_render_sprites;
     this->render_light      = level_render_light;
@@ -106,9 +128,9 @@ PUBLIC void level_create(Level* this, int w, int h, int depth, Level* parent) {
         }
     }
 
-    this->entitiesInTiles = new_array(ArrayList, w * h);
+    this->entitiesInTiles = new_array(ArrayList, tiles_count);
 
-    for (int i = 0; i < w * h; ++i) {
+    for (int i = 0; i < tiles_count; ++i) {
         arraylist_create(this->entitiesInTiles + i);
     }
 
