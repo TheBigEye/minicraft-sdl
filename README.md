@@ -13,10 +13,7 @@ island to defeat the **Air Wizard**.
 
 ### Requirements
 
-| Platform | Packages |
-|---|---|
-The build needs **one** of SDL 1.2, SDL2 or SDL3. Which one is picked is
-described under [Build options](#build-options); anything installed will do.
+The build needs **one** of SDL 1.2, SDL2 or SDL3. Which one is picked is described under [Build options](#build-options); anything installed will do.
 
 | Platform | Packages |
 |---|---|
