@@ -276,13 +276,21 @@ jobs:
         with:
           msystem: ${{ matrix.msystem }}
           update: true
+          # git is listed here, not in matrix.packages, because the i686 job
+          # clones SDL3 from source inside the msys2 shell and the minimal
+          # MSYS2 base image does not ship git.
           install: >-
             make
+            git
             ${{ matrix.packages }}
 
       # MSYS2 has no 32-bit SDL3 package, so the i686 build compiles the
       # library itself. SDL3 is a CMake project with no mandatory external
       # dependencies for the video and audio backends Minicraft uses.
+      # SDL_STATIC=ON is not optional: the game links with -static (Windows
+      # block in the Makefile), and MinGW's ld refuses an import library
+      # (libSDL3.dll.a) under -static, so the static archive has to be
+      # built and installed too.
       - name: Build SDL3 from source (MSYS2 i686)
         if: matrix.sdl3_source != ''
         shell: msys2 {0}
@@ -292,7 +300,7 @@ jobs:
           cmake -S sdl3 -B sdl3/build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
-            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF
+            -DSDL_SHARED=ON -DSDL_STATIC=ON -DSDL_TESTS=OFF
           cmake --build sdl3/build --parallel "$(nproc)"
           cmake --install sdl3/build
 
