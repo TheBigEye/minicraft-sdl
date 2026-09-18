@@ -1,51 +1,75 @@
 /*
- * dirt_tile.c - Dirt tile behavior (Java: tile.DirtTile).
+ * dirt_tile.c - Behaviour of dirt (Java: tile.DirtTile).
+ *
+ * The shovel digs a hole and drops dirt, the hoe turns the square into
+ * farmland. Both actions cost stamina.
  */
 #include "tile.h"
+#include "dirt_tile.h"
+
 #include <stdlib.h>
-#include "../../gfx/color.h"
-#include "../../entity/player.h"
-#include "../../item/item.h"
-#include "../level.h"
-#include "../../item/resourceitem.h"
+
 #include "../../entity/itementity.h"
+#include "../../gfx/color.h"
+#include "../../item/resourceitem.h"
 #include "../../sound/sound.h"
 
-/* Shovel digs a hole, hoe tills farmland; both cost stamina and may
- * drop seeds, mirroring the original. */
-char dirttile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
-	if(item->id == TOOL){
-		if(item->add.tool.type == SHOVEL){
-			if(player_payStamina(player, 4 - item->add.tool.level)){
-				level_set_tile(level, xt, yt, HOLE, 0);
-				Random* random = &tiles[id].random;
-				ItemEntity* entity = malloc(sizeof(ItemEntity));
-				Item item;
-				resourceitem_create(&item, &dirt);
-				itementity_create(entity, item, xt*16 + random_next_int(random, 10) + 3, yt*16 + random_next_int(random, 10) + 3);
-				level_addEntity(level, (Entity *) entity);
-				sound_play(SND_MONSTERHURT); // Sound.monsterHurt.play()
-				return 1;
-			}
-		}
 
-		if(item->add.tool.type == HOE){
-			if(player_payStamina(player, 4 - item->add.tool.level)){
-				level_set_tile(level, xt, yt, FARMLAND, 0);
-				sound_play(SND_MONSTERHURT); // Sound.monsterHurt.play()
-				return 1;
-			}
-		}
-	}
-	return 0;
+/* Constructor: dirt is walkable and worked with a shovel or a hoe. */
+PUBLIC void dirttile_init(Tile* this, TileID id) {
+    tile_init(this, id);
+
+    this->render   = dirttile_render;
+    this->interact = dirttile_interact;
 }
 
-/* Draws the four-quadrant dirt sprite in the level's dirt palette. */
-void dirttile_render(TileID id, Screen* screen, Level* level, int x, int y){
-	int col = getColor4(level->dirtColor, level->dirtColor, level->dirtColor - 111, level->dirtColor - 111);
 
-	render_screen(screen, x*16 + 0, y * 16 + 0, 0, col, 0);
-	render_screen(screen, x*16 + 8, y * 16 + 0, 1, col, 0);
-	render_screen(screen, x*16 + 0, y * 16 + 8, 2, col, 0);
-	render_screen(screen, x*16 + 8, y * 16 + 8, 3, col, 0);
+/* Shovel -> hole + loose dirt; hoe -> farmland. */
+PUBLIC boolean dirttile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
+    (void) attackDir;
+
+    if (item->id == TOOL) {
+        if (item->add.tool.type == SHOVEL) {
+            if (player_pay_stamina(player, 4 - item->add.tool.level)) {
+                level->set_tile(level, xt, yt, tiles[HOLE], 0);
+
+                Random* random = &this->random;
+                ItemEntity* entity = new(ItemEntity);
+                Item drop;
+
+                resourceitem_create(&drop, &dirt);
+
+                itementity_create(entity, drop,
+                        xt * 16 + random->next_int(random, 10) + 3,
+                        yt * 16 + random->next_int(random, 10) + 3);
+                level->add(level, (Entity*) entity);
+
+                sound_play(SND_MONSTERHURT);
+                return true;
+            }
+        }
+
+        if (item->add.tool.type == HOE) {
+            if (player_pay_stamina(player, 4 - item->add.tool.level)) {
+                level->set_tile(level, xt, yt, tiles[FARMLAND], 0);
+                sound_play(SND_MONSTERHURT);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+/* Draws the four quadrants of dirt with the level's palette. */
+PUBLIC void dirttile_render(Tile* this, Screen* screen, Level* level, int x, int y) {
+    (void) this;
+
+    int col = get_color4(level->dirtColor, level->dirtColor, level->dirtColor - 111, level->dirtColor - 111);
+
+    screen->render(screen, x * 16 + 0, y * 16 + 0, 0, col, 0);
+    screen->render(screen, x * 16 + 8, y * 16 + 0, 1, col, 0);
+    screen->render(screen, x * 16 + 0, y * 16 + 8, 2, col, 0);
+    screen->render(screen, x * 16 + 8, y * 16 + 8, 3, col, 0);
 }

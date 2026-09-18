@@ -1,15 +1,36 @@
 /*
- * won_menu.h - Victory screen (Java: WonMenu): score summary shown
+ * won_menu.h - The victory screen
+ *              (Java: com.mojang.ld22.screen.WonMenu): score summary shown
  *              after beating the air wizard.
  */
-#ifndef WON_MENU_H
-#define WON_MENU_H
+#ifndef SCREEN_WON_MENU_H_
+#define SCREEN_WON_MENU_H_ 1
+
+#include "../utils/javalang.h"
 #include "menu.h"
 
-extern const menu_vt wonmenu_vt;
+typedef struct WonMenu WonMenu;
 
-void wonmenu_init();
-void wonmenu_render(Screen*);
-void wonmenu_tick();
+struct WonMenu {
+    /* Java: extends Menu */
+    Menu menu;
+    /* Ticks the screen still ignores input for. Java: `private int inputDelay` */
+    int inputDelay;
+};
 
-#endif // WON_MENU_H
+/* The one victory screen; Java builds a new WonMenu() on every win. */
+extern WonMenu wonmenu;
+
+/* Constructor: installs the WonMenu methods. Java: new WonMenu() */
+PUBLIC void wonmenu_create(WonMenu* this);
+
+/* Java: WonMenu.init() */
+PUBLIC void wonmenu_init(Menu* this);
+
+/* Java: WonMenu.render(Screen) */
+PUBLIC void wonmenu_render(Menu* this, Screen* screen);
+
+/* Java: WonMenu.tick() */
+PUBLIC void wonmenu_tick(Menu* this);
+
+#endif /* SCREEN_WON_MENU_H_ */

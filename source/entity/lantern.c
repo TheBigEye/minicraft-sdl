@@ -1,54 +1,45 @@
 /*
- * lantern.c - Lantern furniture (Java: com.mojang.ld22.entity.Lantern).
+ * lantern.c - The Lantern furniture
+ *             (Java: com.mojang.ld22.entity.Lantern).
  *
- * A placeable light source: its only addition over plain Furniture
- * is a light radius of 8, lighting caves and night around it.
+ * A placeable light source: its only addition over plain Furniture is a
+ * light radius of 8, lighting up caves and the night around it.
  */
 #include "lantern.h"
-#include <stdlib.h>
-#include "../gfx/color.h"
 
+#include <stdlib.h>
 #include <string.h>
 
+#include "../gfx/color.h"
+
+
 /* Java: Lantern.getLightRadius() { return 8; } */
-int lantern_getLightRadius(Lantern* lantern) {
-	(void) lantern;
-	return 8;
+PUBLIC int lantern_get_light_radius(Lantern* this) {
+    (void) this;
+
+    return 8;
 }
 
-/* The Lantern vtable (= the Java `Lantern` class): Furniture + light. */
-static const EntityVTable lantern_vtable = {
-	.tick           = (vt_tick_fn) furniture_tick,
-	.render         = (vt_render_fn) furniture_render,
-	.blocks         = (vt_blocks_fn) furniture_blocks,
-	.hurt           = entity_hurt,
-	.hurtTile       = entity_hurtTile,
-	.touchedBy      = (vt_touchedBy_fn) furniture_touchedBy,
-	.isBlockableBy  = entity_isBlockableBy,
-	.touchItem      = entity_touchItem,
-	.canSwim        = entity_canSwim,
-	.use            = entity_use,
-	.getLightRadius = (vt_getLightRadius_fn) lantern_getLightRadius,
-	.die            = entity_die,
-	.doHurt         = entity_doHurt,
-	.isSwimming     = entity_isSwimming,
-	.free           = (vt_free_fn) furniture_free,
-};
 
 /*
- * Spawns a lantern: furniture named "Lantern", sprite 5 and a bright
- * yellow palette; light radius comes from the vtable override.
+ * Constructor: spawns a lantern, that is, furniture named "Lantern",
+ * sprite 5, in a bright yellow palette and with the light radius coming
+ * from the override above.
  */
-void lantern_create(Lantern* lantern){
-	char* name = malloc(strlen("Lantern") + 1); //XXX ew
-	strcpy(name, "Lantern");
+PUBLIC void lantern_create(Lantern* this) {
+    /* XXX ew: the name has to outlive this call, so it is heap-allocated. */
+    String name = new_array(char, strlen("Lantern") + 1);
 
-	furniture_create((Furniture *) lantern, name);
-	lantern->entity.vt = &lantern_vtable;
+    strcpy(name, "Lantern");
 
-	lantern->entity.type = LANTERN;
-	lantern->col = getColor4(-1, 000, 111, 555);
-	lantern->sprite = 5;
-	lantern->entity.xr = 3;
-	lantern->entity.yr = 2;
+    furniture_create(this, name);
+
+    /* Java: class Lantern extends Furniture */
+    this->entity.get_light_radius = (entity_get_light_radius_fn) lantern_get_light_radius;
+
+    this->entity.type = LANTERN;
+    this->col = get_color4(-1, 000, 111, 555);
+    this->sprite = 5;
+    this->entity.xr = 3;
+    this->entity.yr = 2;
 }

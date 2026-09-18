@@ -161,6 +161,31 @@ jobs:
             backend: SDL1
             arch: x64
             ext: exe
+          # ---- Windows SDL3 ----
+          # MSYS2 ships SDL3 for MINGW64 only: there is no mingw-w64-i686-sdl3
+          # at all, so the 32-bit build compiles the library from source in a
+          # step of its own (see sdl3_source below).
+          - os: windows-latest
+            os_name: Windows
+            kind: msys2
+            msystem: MINGW64
+            packages: mingw-w64-x86_64-gcc mingw-w64-x86_64-sdl3
+            cc: gcc
+            make_args: SDL=3
+            backend: SDL3
+            arch: x64
+            ext: exe
+          - os: windows-latest
+            os_name: Windows
+            kind: msys2
+            msystem: MINGW32
+            packages: mingw-w64-i686-gcc mingw-w64-i686-cmake
+            cc: gcc
+            make_args: SDL=3
+            backend: SDL3
+            arch: i686
+            ext: exe
+            sdl3_source: release-3.2.20
           - os: windows-latest
             os_name: Windows
             kind: msys2
@@ -209,6 +234,30 @@ jobs:
             backend: SDL2
             arch: i686
             ext: elf
+          # ---- Linux SDL3 ----
+          # Ubuntu only packages libsdl3-dev from 25.10 (questing) onwards, so
+          # these two run on a newer image than the SDL1/SDL2 jobs. The build
+          # is pinned with SDL=3 on purpose: the Makefile stops with an error
+          # if the library is missing instead of quietly falling back to SDL2
+          # and shipping a binary labelled SDL3.
+          - os: ubuntu-26.04
+            os_name: Linux
+            kind: apt
+            apt: libsdl3-dev
+            cc: gcc
+            make_args: SDL=3 FB=1
+            backend: SDL3
+            arch: x64
+            ext: elf
+          - os: ubuntu-26.04
+            os_name: Linux
+            kind: sysroot
+            debs: libsdl3-dev libsdl3-0
+            cc: gcc -m32
+            make_args: SDL=3 FB=1
+            backend: SDL3
+            arch: i686
+            ext: elf
           - os: ubuntu-latest
             os_name: Linux
             kind: sysroot
@@ -230,6 +279,22 @@ jobs:
           install: >-
             make
             ${{ matrix.packages }}
+
+      # MSYS2 has no 32-bit SDL3 package, so the i686 build compiles the
+      # library itself. SDL3 is a CMake project with no mandatory external
+      # dependencies for the video and audio backends Minicraft uses.
+      - name: Build SDL3 from source (MSYS2 i686)
+        if: matrix.sdl3_source != ''
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ matrix.sdl3_source }}" https://github.com/libsdl-org/SDL.git sdl3
+          cmake -S sdl3 -B sdl3/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF
+          cmake --build sdl3/build --parallel "$(nproc)"
+          cmake --install sdl3/build
 
       - name: Install dependencies (Linux)
         if: matrix.kind == 'apt'

@@ -1,193 +1,195 @@
 /*
- * airwizard.c - Air Wizard boss (Java: entity.AirWizard).
+ * airwizard.c - The Air Wizard boss (Java: com.mojang.ld22.entity.AirWizard).
  *
- * The game's final challenge: wanders the sky island and fires
- * spark projectiles at the player in attack cycles. Killing it
- * ends the game with a win.
+ * The game's final challenge: it wanders the sky island and fires spark
+ * projectiles at the player in attack cycles. Killing it ends the game
+ * with a win.
  */
 #include "airwizard.h"
-#include <stdlib.h>
-#include "../game.h"
-#include "../gfx/screen.h"
-#include "../gfx/color.h"
-#include "spark.h"
-#include "../level/level.h"
-#include "../sound/sound.h"
 
 #include <math.h>
+#include <stdlib.h>
 
-/* The AirWizard vtable (= the Java `AirWizard` class). */
-static const EntityVTable airwizard_vtable = {
-	.tick           = (vt_tick_fn) airwizard_tick,
-	.render         = (vt_render_fn) airwizard_render,
-	.blocks         = (vt_blocks_fn) mob_blocks,
-	.hurt           = (vt_hurt_fn) mob_hurt,
-	.hurtTile       = (vt_hurtTile_fn) mob_hurtTile,
-	.touchedBy      = (vt_touchedBy_fn) airwizard_touchedBy,
-	.isBlockableBy  = entity_isBlockableBy,
-	.touchItem      = entity_touchItem,
-	.canSwim        = entity_canSwim,
-	.use            = entity_use,
-	.getLightRadius = entity_getLightRadius,
-	.die            = (vt_die_fn) airwizard_die,
-	.doHurt         = (vt_doHurt_fn) airwizard_doHurt,
-	.isSwimming     = (vt_isSwimming_fn) mob_isSwimming,
-	.free           = entity_free,
-};
+#include "../game.h"
+#include "../gfx/color.h"
+#include "../gfx/screen.h"
+#include "../level/level.h"
+#include "../sound/sound.h"
+#include "spark.h"
 
 
-/* Spawns the wizard at a random spot with the boss health pool. */
-void airwizard_create(AirWizard* wizard){
-	mob_create(&wizard->mob);
-	wizard->mob.entity.vt = &airwizard_vtable;
+/* Constructor: spawns the wizard at a random spot with the boss health pool. */
+PUBLIC void airwizard_create(AirWizard* this) {
+    mob_create(&this->mob);   /* super(): Mob already installs its methods */
 
-	wizard->mob.entity.type = AIRWIZARD;
-	wizard->mob.entity.x = random_next_int(&wizard->mob.entity.random, 64 * 16);
-	wizard->mob.entity.y = random_next_int(&wizard->mob.entity.random, 64 * 16);
-	wizard->mob.health = wizard->mob.maxHealth = 2000;
+    /* What AirWizard overrides from Mob.
+     * Java: class AirWizard extends Mob */
+    this->mob.entity.tick       = (entity_tick_fn) airwizard_tick;
+    this->mob.entity.render     = (entity_render_fn) airwizard_render;
+    this->mob.entity.touched_by = (entity_touched_by_fn) airwizard_touched_by;
+    this->mob.entity.die        = (entity_die_fn) airwizard_die;
+    this->mob.entity.do_hurt    = (entity_do_hurt_fn) airwizard_do_hurt;
 
-	wizard->xa = wizard->ya = 0;
-	wizard->randomWalkTime = 0;
-	wizard->attackDelay = 0;
-	wizard->attackTime = 0;
-	wizard->attackType = 0;
+    this->mob.entity.type = AIRWIZARD;
+    this->mob.entity.x = this->mob.entity.random.next_int(&this->mob.entity.random, 64 * 16);
+    this->mob.entity.y = this->mob.entity.random.next_int(&this->mob.entity.random, 64 * 16);
+    this->mob.health = this->mob.maxHealth = 2000;
+
+    this->xa = this->ya = 0;
+    this->randomWalkTime = 0;
+    this->attackDelay = 0;
+    this->attackTime = 0;
+    this->attackType = 0;
 }
 
 
 /*
- * Boss AI (Java: AirWizard.tick): random walking interleaved with
- * attack cycles that spawn sparks aimed around the player; the
- * cycle shape depends on the current attackType.
+ * Boss AI (Java: AirWizard.tick): random walking interleaved with attack
+ * cycles that spawn sparks aimed around the player; the shape of the
+ * cycle depends on the current attackType.
  */
-void airwizard_tick(AirWizard* wizard){
-	mob_tick(&wizard->mob);
+PUBLIC void airwizard_tick(AirWizard* this) {
+    mob_tick(&this->mob);   /* Java: super.tick() */
 
-	if (wizard->attackDelay > 0) {
-		wizard->mob.dir = (wizard->attackDelay - 45) / 4 % 4;
-		wizard->mob.dir = (wizard->mob.dir * 2 % 4) + (wizard->mob.dir / 2);
+    if (this->attackDelay > 0) {
+        this->mob.dir = (this->attackDelay - 45) / 4 % 4;
+        this->mob.dir = (this->mob.dir * 2 % 4) + (this->mob.dir / 2);
 
-		if (wizard->attackDelay < 45) wizard->mob.dir = 0;
-		--wizard->attackDelay;
+        if (this->attackDelay < 45) this->mob.dir = 0;
 
-		if (wizard->attackDelay == 0) {
-			wizard->attackType = 0;
-			if (wizard->mob.health < 1000) wizard->attackType = 1;
-			if (wizard->mob.health < 200) wizard->attackType = 2;
-			wizard->attackTime = 60 * 2;
-		}
+        --this->attackDelay;
 
-		return;
-	}
+        if (this->attackDelay == 0) {
+            this->attackType = 0;
 
-	if (wizard->attackTime > 0) {
-		--wizard->attackTime;
+            if (this->mob.health < 1000) this->attackType = 1;
+            if (this->mob.health < 200) this->attackType = 2;
 
-		double dir = wizard->attackTime * 0.25 * (wizard->attackTime % 2 * 2 - 1);
-		double speed = 0.7 + wizard->attackType * 0.2;
+            this->attackTime = 60 * 2;
+        }
 
-		Spark* spark = malloc(sizeof(Spark));
-		spark_create(spark, wizard, cos(dir) * speed, sin(dir) * speed);
-		level_addEntity(wizard->mob.entity.level, &spark->entity);
-		return;
-	}
+        return;
+    }
 
-	int speed = (wizard->mob.tickTime % 4) == 0 ? 0 : 1;
-	if (!mob_move(&wizard->mob, wizard->xa * speed, wizard->ya * speed) || random_next_int(&wizard->mob.entity.random, 100) == 0) {
-		wizard->randomWalkTime = 30;
-		wizard->xa = random_next_int(&wizard->mob.entity.random, 3) - 1;
-		wizard->ya = random_next_int(&wizard->mob.entity.random, 3) - 1;
-	}
+    if (this->attackTime > 0) {
+        --this->attackTime;
 
-	if (wizard->randomWalkTime > 0) {
-		--wizard->randomWalkTime;
-		if (game_player->mob.entity.level == wizard->mob.entity.level && wizard->randomWalkTime == 0) {
-			int xd = game_player->mob.entity.x - wizard->mob.entity.x;
-			int yd = game_player->mob.entity.y - wizard->mob.entity.y;
+        double dir = this->attackTime * 0.25 * (this->attackTime % 2 * 2 - 1);
+        double speed = 0.7 + this->attackType * 0.2;
 
-			if (random_next_int(&wizard->mob.entity.random, 4) == 0 && xd*xd + yd*yd < 50 * 50) {
-				if(wizard->attackDelay == 0 && wizard->attackTime == 0){
-					wizard->attackDelay = 60 * 2;
-				}
-			}
+        Spark* spark = new(Spark);
 
-		}
-	}
+        spark_create(spark, this, cos(dir) * speed, sin(dir) * speed);
+        this->mob.entity.level->add(this->mob.entity.level, &spark->entity);
+        return;
+    }
+
+    int speed = (this->mob.tickTime % 4) == 0 ? 0 : 1;
+
+    if (!mob_move(&this->mob, this->xa * speed, this->ya * speed)
+            || this->mob.entity.random.next_int(&this->mob.entity.random, 100) == 0) {
+        this->randomWalkTime = 30;
+        this->xa = this->mob.entity.random.next_int(&this->mob.entity.random, 3) - 1;
+        this->ya = this->mob.entity.random.next_int(&this->mob.entity.random, 3) - 1;
+    }
+
+    if (this->randomWalkTime > 0) {
+        --this->randomWalkTime;
+
+        if (game_player->mob.entity.level == this->mob.entity.level && this->randomWalkTime == 0) {
+            int xd = game_player->mob.entity.x - this->mob.entity.x;
+            int yd = game_player->mob.entity.y - this->mob.entity.y;
+
+            if (this->mob.entity.random.next_int(&this->mob.entity.random, 4) == 0 && xd * xd + yd * yd < 50 * 50) {
+                if (this->attackDelay == 0 && this->attackTime == 0) {
+                    this->attackDelay = 60 * 2;
+                }
+            }
+        }
+    }
 }
 
 
-void airwizard_doHurt(AirWizard* wizard, int damage, int attackDir){
-	mob_doHurt(&wizard->mob, damage, attackDir);
+/* A hit always starts an attack cycle. */
+PUBLIC void airwizard_do_hurt(AirWizard* this, int damage, int attackDir) {
+    mob_do_hurt(&this->mob, damage, attackDir);   /* Java: super.doHurt() */
 
-	if (wizard->attackDelay == 0 && wizard->attackTime == 0) {
-		wizard->attackDelay = 60 * 2;
-	}
+    if (this->attackDelay == 0 && this->attackTime == 0) {
+        this->attackDelay = 60 * 2;
+    }
 }
 
 
-/* Draws the wizard sprite with walk animation and facing. */
-void airwizard_render(AirWizard* wizard, Screen* screen){
-	int xt = 8;
-	int yt = 14;
+/* Draws the wizard sprite with its walk animation and facing. */
+PUBLIC void airwizard_render(AirWizard* this, Screen* screen) {
+    int xt = 8;
+    int yt = 14;
 
-	int flip1 = (wizard->mob.walkDist >> 3) & 1;
-	int flip2 = (wizard->mob.walkDist >> 3) & 1;
+    int flip1 = (this->mob.walkDist >> 3) & 1;
+    int flip2 = (this->mob.walkDist >> 3) & 1;
 
-	if (wizard->mob.dir == 1) xt += 2;
-	if (wizard->mob.dir > 1) {
-		flip1 = 0;
-		flip2 = ((wizard->mob.walkDist >> 4) & 1);
-		if (wizard->mob.dir == 2) flip1 = 1;
-		xt += 4 + ((wizard->mob.walkDist >> 3) & 1) * 2;
-	}
+    if (this->mob.dir == 1) xt += 2;
 
-	int xo = wizard->mob.entity.x - 8;
-	int yo = wizard->mob.entity.y - 11;
+    if (this->mob.dir > 1) {
+        flip1 = 0;
+        flip2 = (this->mob.walkDist >> 4) & 1;
 
-	int col1 = getColor4(-1, 100, 500, 555);
-	int col2 = getColor4(-1, 100, 500, 532);
+        if (this->mob.dir == 2) flip1 = 1;
 
-	if (wizard->mob.health < 200) {
-		if (wizard->mob.tickTime / 3 % 2 == 0) {
-			col1 = getColor4(-1, 500, 100, 555);
-			col2 = getColor4(-1, 500, 100, 532);
-		}
-	} else if (wizard->mob.health < 1000) {
-		if (wizard->mob.tickTime / 5 % 4 == 0) {
-			col1 = getColor4(-1, 500, 100, 555);
-			col2 = getColor4(-1, 500, 100, 532);
-		}
-	}
+        xt += 4 + ((this->mob.walkDist >> 3) & 1) * 2;
+    }
 
-	if (wizard->mob.hurtTime > 0) {
-		col1 = getColor4(-1, 555, 555, 555);
-		col2 = getColor4(-1, 555, 555, 555);
-	}
+    int xo = this->mob.entity.x - 8;
+    int yo = this->mob.entity.y - 11;
 
-	render_screen(screen, xo + 8 * flip1, yo + 0, xt + yt * 32, col1, flip1);
-	render_screen(screen, xo + 8 - 8 * flip1, yo + 0, xt + 1 + yt * 32, col1, flip1);
-	render_screen(screen, xo + 8 * flip2, yo + 8, xt + (yt + 1) * 32, col2, flip2);
-	render_screen(screen, xo + 8 - 8 * flip2, yo + 8, xt + 1 + (yt + 1) * 32, col2, flip2);
+    int col1 = get_color4(-1, 100, 500, 555);
+    int col2 = get_color4(-1, 100, 500, 532);
+
+    /* It flashes red as it gets closer to dying. */
+    if (this->mob.health < 200) {
+        if (this->mob.tickTime / 3 % 2 == 0) {
+            col1 = get_color4(-1, 500, 100, 555);
+            col2 = get_color4(-1, 500, 100, 532);
+        }
+    } else if (this->mob.health < 1000) {
+        if (this->mob.tickTime / 5 % 4 == 0) {
+            col1 = get_color4(-1, 500, 100, 555);
+            col2 = get_color4(-1, 500, 100, 532);
+        }
+    }
+
+    if (this->mob.hurtTime > 0) {
+        col1 = get_color4(-1, 555, 555, 555);
+        col2 = get_color4(-1, 555, 555, 555);
+    }
+
+    screen->render(screen, xo + 8 * flip1, yo + 0, xt + yt * 32, col1, flip1);
+    screen->render(screen, xo + 8 - 8 * flip1, yo + 0, xt + 1 + yt * 32, col1, flip1);
+    screen->render(screen, xo + 8 * flip2, yo + 8, xt + (yt + 1) * 32, col2, flip2);
+    screen->render(screen, xo + 8 - 8 * flip2, yo + 8, xt + 1 + (yt + 1) * 32, col2, flip2);
 }
 
 
-void airwizard_touchedBy(AirWizard* wizard, Entity* entity){
-	if (entity->type == PLAYER) {
-		entity->vt->hurt(entity, &wizard->mob, 3, wizard->mob.dir);
-	}
+/* Hurts the player on contact, for 3 damage. */
+PUBLIC void airwizard_touched_by(AirWizard* this, Entity* entity) {
+    if (entity->type == PLAYER) {
+        entity->hurt(entity, &this->mob, 3, this->mob.dir);
+    }
 }
 
 
 /*
- * Boss death (Java: AirWizard.die): awards 1000 score, starts the
- * win sequence through player_gameWon() and plays bossdeath.
+ * Boss death (Java: AirWizard.die): it awards 1000 score, starts the win
+ * sequence through player_game_won() and plays bossdeath.
  */
-void airwizard_die(AirWizard* wizard){
-	mob_die(&wizard->mob);
+PUBLIC void airwizard_die(AirWizard* this) {
+    mob_die(&this->mob);   /* Java: super.die() */
 
-	if (game_player->mob.entity.level == wizard->mob.entity.level)  {
-		game_player->score += 1000;
-		player_gameWon(game_player);
-	}
+    if (game_player->mob.entity.level == this->mob.entity.level) {
+        game_player->score += 1000;
+        player_game_won(game_player);
+    }
 
-	sound_play(SND_BOSSDEATH); // Sound.bossdeath.play()
+    /* Sound.bossdeath.play() */
+    sound_play(SND_BOSSDEATH);
 }

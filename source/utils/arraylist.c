@@ -1,134 +1,145 @@
 /*
- * arraylist.c - Dynamic pointer array backing the game's list semantics.
+ * arraylist.c - Implementation of ArrayList.
  *
- * Growth is manual (realloc on demand) and element order is preserved on
- * insert/remove, matching the Java ArrayList behavior the game logic
- * relies on (e.g. entities added mid-tick are visited next tick).
+ * Growth is by hand (realloc on demand) and element order is preserved
+ * across insertions and removals, exactly as in Java's ArrayList. The game
+ * logic relies on that: an entity added halfway through a tick is visited
+ * on the next one, and never skipped.
  */
 #include "arraylist.h"
-#include <string.h>
+
 #include <stdlib.h>
-#include <stdio.h>
 
+#include "../log.h"
 
-/* Initializes an empty list; the backing store stays NULL until first use. */
-void create_arraylist(ArrayList* list){
-	list->capacity = 0;
-	list->size = 0;
-	list->elements = 0;
+/* Constructor: installs the methods and allocates nothing yet. */
+PUBLIC void arraylist_create(ArrayList* this) {
+    this->add            = arraylist_add;
+    this->add_to         = arraylist_add_to;
+    this->get            = arraylist_get;
+    this->pop            = arraylist_pop;
+    this->remove_element = arraylist_remove_element;
+    this->remove_at      = arraylist_remove_at;
+    this->clear          = arraylist_clear;
+    this->free           = arraylist_free;
+    this->free_each      = arraylist_free_each;
+
+    this->capacity = 0;
+    this->size     = 0;
+    this->elements = null;
 }
 
 
 /*
- * Inserts `element` at `index`, moving the tail one slot right.
- * Appending at the tail degenerates to arraylist_push(); an index beyond
- * the tail is rejected because it would leave a hole in the store.
+ * Inserts `element` at `index`, shifting the tail one slot to the right.
+ * Inserting at the end degenerates into add(); an index past the tail is
+ * rejected, because honouring it would leave a meaningless gap.
  */
-void arraylist_pushTo(ArrayList* list, int index, void* element){
-	if (index > list->size) {
-		printf("Tried pushing element too far!\n");
-		return;
+PUBLIC void arraylist_add_to(ArrayList* this, int index, void* element) {
+    if (index > this->size) {
+        LOG_WARN("Tried pushing element too far! (index %d, size %d)", index, this->size);
+        return;
 
-	} else if(index == list->size) {
-		arraylist_push(list, element);
+    } else if (index == this->size) {
+        this->add(this, element);
 
-	} else {
-		int size = list->size + 1;
+    } else {
+        int size = this->size + 1;
 
-		if (size > list->capacity) {
-			list->elements = realloc(list->elements, sizeof(void*) * size);
-		}
+        if (size > this->capacity) {
+            this->elements = realloc(this->elements, sizeof(void*) * size);
+            this->capacity = size;
+        }
 
-		for (int i = list->size; i > index; --i) {
-			list->elements[i] = list->elements[i-1];
-		}
+        for (int i = this->size; i > index; --i) {
+            this->elements[i] = this->elements[i - 1];
+        }
 
-		list->elements[index] = element;
-		list->size = size;
-	}
+        this->elements[index] = element;
+        this->size = size;
+    }
 }
 
 
-/* Appends `element`, allocating or growing the backing store when full. */
-void arraylist_push(ArrayList* list, void* element) {
-	int size = list->size + 1;
+/* Appends `element`, allocating or growing the storage when it must. */
+PUBLIC void arraylist_add(ArrayList* this, void* element) {
+    int size = this->size + 1;
 
-	if (size > list->capacity) {
-		if (list->elements) {
-			list->elements = realloc(list->elements, sizeof(void*) * size);
+    if (size > this->capacity) {
+        if (this->elements) {
+            this->elements = realloc(this->elements, sizeof(void*) * size);
 
-		} else {
-			list->elements = malloc(sizeof(void*) * size);
-		}
+        } else {
+            this->elements = malloc(sizeof(void*) * size);
+        }
 
-		list->capacity = size;
-	}
+        this->capacity = size;
+    }
 
-	list->size = size;
-	list->elements[list->size - 1] = element;
+    this->size = size;
+    this->elements[this->size - 1] = element;
 }
 
 
-/* Element at `index`; no bounds checking, the caller guarantees validity. */
-void* arraylist_get(ArrayList* list, int index) {
-	return list->elements[index];
+/* The element at `index`; staying in range is the caller's job. */
+PUBLIC void* arraylist_get(ArrayList* this, int index) {
+    return this->elements[index];
 }
 
 
-/* Finds the first slot holding `element` and removes it, else warns. */
-void* arraylist_removeElement(ArrayList* list, void* element) {
-	for (int i = 0; i < list->size; ++i) {
-		void* e = list->elements[i];
+/* Finds the first slot holding `element`, removes it, and warns if absent. */
+PUBLIC void* arraylist_remove_element(ArrayList* this, void* element) {
+    for (int i = 0; i < this->size; ++i) {
+        if (this->elements[i] == element) {
+            return this->remove_at(this, i);
+        }
+    }
 
-		if (e == element) {
-			return arraylist_removeId(list, i);
-		}
-	}
-
-	printf("Tried removing unknown element from array (%p)!\n", element);
-	return 0;
+    LOG_WARN("Tried removing unknown element from array (%p)!", element);
+    return null;
 }
 
 
 /* Removes the slot at `index`, closing the gap by shifting the tail left. */
-void* arraylist_removeId(ArrayList* list, int index) {
-	void* element = list->elements[index];
+PUBLIC void* arraylist_remove_at(ArrayList* this, int index) {
+    void* element = this->elements[index];
 
-	if (index < list->size-1) {
-		for(int i = index + 1; i < list->size; ++i) {
-			list->elements[i-1] = list->elements[i];
-		}
-	}
+    if (index < this->size - 1) {
+        for (int i = index + 1; i < this->size; ++i) {
+            this->elements[i - 1] = this->elements[i];
+        }
+    }
 
-	--list->size;
-	return element;
+    --this->size;
+    return element;
 }
 
 
-/* Drops the last element and returns it; the store keeps its capacity. */
-void* arraylist_pop(ArrayList* list) {
-	--list->size;
-	void* elem = list->elements[list->size];
-	return elem;
+/* Removes and returns the last element; the storage keeps its capacity. */
+PUBLIC void* arraylist_pop(ArrayList* this) {
+    --this->size;
+
+    return this->elements[this->size];
 }
 
 
-/* Frees every element and then the store; the list must not be reused. */
-void arraylist_remove_and_dealloc_each(ArrayList* list) {
-	for (int i = 0; i < list->size; ++i) {
-		free(list->elements[i]);
-	}
-	free(list->elements);
+/* Frees every element and then the storage. The list must not be reused. */
+PUBLIC void arraylist_free_each(ArrayList* this) {
+    for (int i = 0; i < this->size; ++i) {
+        free(this->elements[i]);
+    }
+
+    free(this->elements);
 }
 
 
-/* Frees only the backing store; ownership of the elements stays outside. */
-void arraylist_remove(ArrayList* list) {
-	free(list->elements);
+/* Frees the storage only; somebody else owns the elements. */
+PUBLIC void arraylist_free(ArrayList* this) {
+    free(this->elements);
 }
 
 
-/* Logically empties the list; existing allocations are kept for reuse. */
-void arraylist_clear(ArrayList* list) {
-	list->size = 0;
+/* Empties the list logically, keeping the storage around for reuse. */
+PUBLIC void arraylist_clear(ArrayList* this) {
+    this->size = 0;
 }

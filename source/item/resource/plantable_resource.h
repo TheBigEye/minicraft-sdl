@@ -1,24 +1,36 @@
 /*
- * plantable_resource.h - Plantable resource extra data
- * (Java: PlantableResource).
+ * plantable_resource.h - The extra data of a plantable resource
+ *                        (Java: com.mojang.ld22.item.resource.PlantableResource).
  */
 #ifndef ITEM_RESOURCE_PLANTABLE_RESOURCE_H_
 #define ITEM_RESOURCE_PLANTABLE_RESOURCE_H_
 
+#include "../../utils/javalang.h"
 #include "../../level/tile/tile.h"
 
-struct _Resource;
+struct Resource;
 
-/* Extra per-resource state for plantables. */
-typedef struct{
-	int sourceTilesSize;  /* Number of tiles this may be planted on. */
-	TileID* sourceTiles;  /* Tiles this may be planted on. */
-	TileID targetTile;    /* Tile the source becomes when planted. */
-} res_plantable;
+/*
+ * Extra per-resource state for plantables.
+ *
+ * Java keeps `private List<Tile> sourceTiles`; the port keeps a borrowed
+ * array plus its length, because the tables are static and never freed.
+ */
+typedef struct res_plantable res_plantable;
 
+struct res_plantable {
+    /* Number of tiles this may be planted on. */
+    int sourceTilesSize;
+    /* Tiles this may be planted on. Java: `private List<Tile> sourceTiles` */
+    TileID* sourceTiles;
+    /* Tile the source becomes when planted. Java: `private Tile targetTile` */
+    TileID targetTile;
+};
 
-
-/* Initializes a resource as plantable with target/source tiles. */
-void init_plantable_resource(struct _Resource* resource, char* name, int sprite, int color, TileID target, TileID* source, int size);
+/*
+ * Constructor: fills the Resource fields, then the planting rules.
+ * Java: PlantableResource(String, int, int, Tile targetTile, Tile... sourceTiles)
+ */
+PUBLIC void init_plantable_resource(struct Resource* this, const char* name, int sprite, int color, TileID target, TileID* sources, int size);
 
 #endif /* ITEM_RESOURCE_PLANTABLE_RESOURCE_H_ */

@@ -1,68 +1,103 @@
 /*
- * player.h - The player character (Java: com.mojang.ld22.entity.Player).
+ * player.h - The player character
+ *            (Java: com.mojang.ld22.entity.Player).
  *
- * A Mob plus inventory, stamina, selected/attacking item and the
+ * A Mob plus inventory, stamina, the selected and the swung items, and the
  * interaction boxes used to attack, use and interact with the world.
  */
 #ifndef PLAYER_H
-#define PLAYER_H
+#define PLAYER_H 1
 
 #include "inventory.h"
 #include "mob.h"
 
+#include "../utils/javalang.h"
 #include "../level/level.h"
 
-struct _Item;
-struct _ItemEntity;
+struct Item;
+struct ItemEntity;
 
-typedef struct _Player{
-	Mob mob;
-	int attackTime, attackDir;  /* swing animation ticks and its direction */
-	Inventory inventory;
-	struct _Item* attackItem, *activeItem; /* item swung / item held */
-	int stamina, staminaRecharge, staminaRechargeDelay;
-	int score;
-	int maxStamina;
-	int onStairDelay;      /* cooldown between stair level transitions */
-	int invulnerableTime;  /* post-hit and post-win invulnerability */
-} Player;
+typedef struct Player Player;
 
-/* Initializes the player: 10 hp, 10 stamina, workbench + power glove. */
-void player_create(Player* player);
-/* Per-tick update: input, stamina, stairs, swimming, attack/menu keys. */
-void player_tick(Player* player);
+struct Player {
+    /* Inheritance: Mob, always the first member. Java: extends Mob */
+    Mob mob;
 
-/* Swings the held item: interact on entities/tiles, else hurt area. */
-void player_attack(Player* player);
-/* Calls use() on entities inside the box; first success wins. */
-char player_usexy(Player* player, int x0, int y0, int x1, int y1);
-/* Calls interact() with the active item inside the box. */
-char player_interact(Player* player, int x0, int y0, int x1, int y1);
-/* Hurts every entity inside the box with the player's attack damage. */
-void player_hurt(Player* player, int x0, int y0, int x1, int y1);
-/* 1-3 base damage plus the held item's bonus. */
-int player_getAttackDamage(Player* player, Entity* entity);
-/* Draws the player, swim overlay, swing arc and carried furniture. */
-void player_render(Player* player, Screen* screen);
-/* Finds a grass tile to spawn on (loops until one appears). */
-char player_findStartPos(Player* player, Level* level);
-/* Subtracts `cost` stamina if available; returns success. */
-char player_payStamina(Player* player, int cost);
-/* Player death: removes the mob and plays the death sound. */
-void player_die(Player *player);
+    /* Swing animation ticks and the direction it points at.
+     * Java: `private int attackTime, attackDir` */
+    int attackTime, attackDir;
+    /* Java: `public Inventory inventory = new Inventory()` */
+    Inventory inventory;
+    /* Item swung and item held. Java: `public Item attackItem, activeItem` */
+    struct Item* attackItem, *activeItem;
+    /* Java: `public int stamina, staminaRecharge, staminaRechargeDelay` */
+    int stamina, staminaRecharge, staminaRechargeDelay;
+    /* Java: `public int score` */
+    int score;
+    /* Java: `public int maxStamina = 10` */
+    int maxStamina;
+    /* Cooldown between stair level transitions.
+     * Java: `private int onStairDelay` */
+    int onStairDelay;
+    /* Post-hit and post-win invulnerability.
+     * Java: `public int invulnerableTime = 0` */
+    int invulnerableTime;
+};
 
-/* Damage received: invulnerability windows, sound, popup, knockback. */
-void player_doHurt(Player* player, int damage, int attackDir);
-void player_die(Player* mob);
-/* Marks the game as won: long invulnerability + win sequence. */
-void player_gameWon(Player* player);
-/* Releases inventory and held items without double frees. */
-void player_free(Player* player);
+/*
+ * Two fields of Java's Player have no counterpart here: `private
+ * InputHandler input` and `public Game game`. The port keeps both as
+ * globals (inputhandler.h and game.h), so they are not stored per player.
+ */
 
-/* Virtual overrides (declared for the vtable; mirror Player.java) */
-char player_canSwim(Player* player);        /* players always can */
-void player_touchItem(Player* player, struct _ItemEntity* item); /* pick up */
-void player_touchedBy(Player* player, Entity* entity); /* forward to non-players */
-int  player_getLightRadius(Player* player); /* 2, or carried furniture's */
+/* Constructor: 10 hp, 10 stamina, workbench plus power glove.
+ * Java: Player(Game game, InputHandler input) */
+PUBLIC void player_create(Player* this);
 
-#endif // PLAYER_H
+/* Java: Player.tick() */
+PUBLIC void player_tick(Player* this);
+
+/* Java: Player.render(Screen) */
+PUBLIC void player_render(Player* this, Screen* screen);
+
+/* Java: Player.touchItem(ItemEntity) */
+PUBLIC void player_touch_item(Player* this, struct ItemEntity* itemEntity);
+
+/* Players always can. Java: Player.canSwim() { return true; } */
+PUBLIC boolean player_can_swim(Player* this);
+
+/* Java: Player.findStartPos(Level) */
+PUBLIC boolean player_find_start_pos(Player* this, Level* level);
+
+/* Java: Player.payStamina(int) */
+PUBLIC boolean player_pay_stamina(Player* this, int cost);
+
+/* 2, or the carried furniture's radius. Java: Player.getLightRadius() */
+PUBLIC int player_get_light_radius(Player* this);
+
+/* Java: Player.die() */
+PUBLIC void player_die(Player* this);
+
+/* Java: Player.touchedBy(Entity) */
+PUBLIC void player_touched_by(Player* this, Entity* entity);
+
+/* Java: Mob.doHurt(int, int), overridden by Player. */
+PUBLIC void player_do_hurt(Player* this, int damage, int attackDir);
+
+/* Marks the game as won. Java: Player.gameWon() */
+PUBLIC void player_game_won(Player* this);
+
+/* C-only: releases everything the player owns. */
+PUBLIC void player_free(Player* this);
+
+/*
+ * The helpers Java marks private are deliberately absent from this header:
+ * attack(), use(), use(int, int, int, int), interact(int, int, int, int),
+ * hurt(int, int, int, int) and getAttackDamage(Entity). They are PRIVATE in
+ * player.c, since nothing outside it calls them.
+ *
+ * use() and use(int, int, int, int) are Java overloads of one name, so
+ * player.c defines a single name for them as well; see javalang.h.
+ */
+
+#endif /* PLAYER_H */

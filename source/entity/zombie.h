@@ -1,23 +1,40 @@
 /*
- * zombie.h - Zombie mob: a walking undead that drops cloth.
+ * zombie.h - The Zombie: a walking undead that drops cloth
+ *            (Java: com.mojang.ld22.entity.Zombie).
  */
 #ifndef ZOMBIE_H
-#define ZOMBIE_H
+#define ZOMBIE_H 1
+
 #include "mob.h"
 
-struct _Screen;
+#include "../utils/javalang.h"
 
-typedef struct _Zombie{
-	Mob mob;
-	int xa, ya;
-	int lvl;
-	int randomWalkTime;
-} Zombie;
+typedef struct Zombie Zombie;
 
-void zombie_create(Zombie* zombie, int lvl);
-void zombie_tick(Zombie* zombie);
-void zombie_render(Zombie* zombie, struct _Screen* screen);
-void zombie_touchedBy(Zombie* zombie, struct _Entity* entity);
-void zombie_die(Zombie* zombie);
+struct Zombie {
+    /* Inheritance: Mob, always the first member. */
+    Mob mob;
+    /* Direction it is heading in. Java: `private int xa, ya` */
+    int xa, ya;
+    /* Level, 1 to 4: it drives health, damage and colour. Java: lvl */
+    int lvl;
+    /* Ticks left wandering in the current direction. Java: randomWalkTime */
+    int randomWalkTime;
+};
 
-#endif // ZOMBIE_H
+/* Constructor. Java: Zombie(int lvl) */
+PUBLIC void zombie_create(Zombie* this, int lvl);
+
+/* Java: Zombie.tick() */
+PUBLIC void zombie_tick(Zombie* this);
+
+/* Java: Zombie.render(Screen) */
+PUBLIC void zombie_render(Zombie* this, Screen* screen);
+
+/* Java: Zombie.touchedBy(Entity) */
+PUBLIC void zombie_touched_by(Zombie* this, Entity* entity);
+
+/* Java: Zombie.die() */
+PUBLIC void zombie_die(Zombie* this);
+
+#endif /* ZOMBIE_H */

@@ -1,17 +1,22 @@
 /*
- * dirt_tile.h - Dirt tile: the underground's surface; shovel turns it
- *               into a hole, hoe into farmland.
+ * dirt_tile.h - The dirt tile (Java: tile.DirtTile).
  */
 #ifndef LEVEL_TILE_DIRT_TILE_H_
-#define LEVEL_TILE_DIRT_TILE_H_
+#define LEVEL_TILE_DIRT_TILE_H_ 1
 
 #include "tile.h"
 
-struct _Item;
-struct _Player;
+#include "../level.h"
+#include "../../entity/player.h"
+#include "../../item/item.h"
 
-void dirttile_render(TileID id, Screen* screen, Level* level, int x, int y);
-/* Shovel/hoe interaction; costs stamina and plays the dig sound. */
-char dirttile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
+/* Constructor */
+PUBLIC void dirttile_init(Tile* this, TileID id);
 
-#endif /* LEVEL_TILE_CLOUD_TILE_H_ */
+/* Java: DirtTile.render(Screen, Level, int, int) */
+PUBLIC void dirttile_render(Tile* this, Screen* screen, Level* level, int x, int y);
+
+/* Java: DirtTile.interact(Level, int, int, Player, Item, int) */
+PUBLIC boolean dirttile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir);
+
+#endif /* LEVEL_TILE_DIRT_TILE_H_ */

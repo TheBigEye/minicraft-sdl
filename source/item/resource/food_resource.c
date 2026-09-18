@@ -1,11 +1,17 @@
 /*
- * food_resource.c - Edible resource initializer (Java: FoodResource).
+ * food_resource.c - The edible resource initializer
+ *                   (Java: com.mojang.ld22.item.resource.FoodResource).
  */
+#include "food_resource.h"
+
 #include "resource.h"
 
-/* Fills the common fields then the food-specific heal/stamina data. */
-void init_food_resource(Resource* resource, char* name, int sprite, int color, int heal, int staminaCost) {
-	init_resource(resource, name, sprite, color);
-	resource->add.food.heal = heal;
-	resource->add.food.staminaCost = staminaCost;
+
+/* Constructor: fills the common fields, then the food-specific heal and
+ * stamina data. Java: FoodResource(String, int, int, int, int) */
+PUBLIC void init_food_resource(struct Resource* this, const char* name, int sprite, int color, int heal, int staminaCost) {
+    init_resource(this, name, sprite, color);   /* super(name, sprite, color) */
+
+    this->add.food.heal = heal;
+    this->add.food.staminaCost = staminaCost;
 }

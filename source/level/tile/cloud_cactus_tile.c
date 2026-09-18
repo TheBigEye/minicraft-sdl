@@ -1,74 +1,126 @@
 /*
- * cloud_cactus_tile.c - Cloud cactus behavior (Java: tile.CloudCactusTile).
+ * cloud_cactus_tile.c - Behaviour of the cloud cactus
+ *                       (Java: tile.CloudCactusTile).
  *
- * A hazard of the sky island: attacking it (or being it attacked)
- * hurts the mob instead of breaking it easily; pickaxes chip it down
- * until it reverts to plain cloud.
+ * Only the Air Wizard gets through. Touching it deals 3 damage, and the
+ * pickaxe chips at it: after 10 hits it becomes cloud again.
  */
 #include "tile.h"
+#include "cloud_cactus_tile.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../gfx/color.h"
 #include "../../entity/particle/smashparticle.h"
 #include "../../entity/particle/textparticle.h"
+#include "../../gfx/color.h"
 #include "../../item/item.h"
-#include "../../entity/player.h"
 
 
-/* Internal chip-damage helper: shows smash/damage feedback and, at 10
- * accumulated damage, replaces the tile with plain cloud. */
-void cloudcactustile_hurt_(TileID id, Level* level, int x, int y, int dmg) {
-	int damage = level_get_data(level, x, y) + 1;
+/* Constructor: a sky obstacle, harmful on contact. */
+PUBLIC void cloudcactustile_init(Tile* this, TileID id) {
+    tile_init(this, id);
 
-	SmashParticle* smash = malloc(sizeof(SmashParticle));
-	smashparticle_create(smash, (x * 16) + 8, (y * 16) + 8);
-	level_addEntity(level, &smash->entity);
+    this->render      = cloudcactustile_render;
+    this->may_pass    = cloudcactustile_may_pass;
+    this->hurt        = cloudcactustile_hurt;
+    this->bumped_into = cloudcactustile_bumped_into;
+    this->interact    = cloudcactustile_interact;
+}
 
-	TextParticle* text = malloc(sizeof(TextParticle));
-	char* txt = malloc(16);
-	sprintf(txt, "%d", dmg);
-	textparticle_create(text, txt, (x * 16) + 8, (y * 16) + 8, getColor4(-1, 500, 500, 500));
-	level_addEntity(level, &text->entity);
 
-	if (dmg > 0) {
-		if (damage >= 10) {
-            level_set_tile(level, x, y, CLOUD, 0);
+/* Draws the cactus on the cloud background. */
+PUBLIC void cloudcactustile_render(Tile* this, Screen* screen, Level* level, int x, int y) {
+    (void) this;
+    (void) level;
+
+    int col = get_color4(444, 111, 333, 555);
+
+    screen->render(screen, x * 16 + 0, y * 16 + 0, 17 + 1 * 32, col, 0);
+    screen->render(screen, x * 16 + 8, y * 16 + 0, 18 + 1 * 32, col, 0);
+    screen->render(screen, x * 16 + 0, y * 16 + 8, 17 + 2 * 32, col, 0);
+    screen->render(screen, x * 16 + 8, y * 16 + 8, 18 + 2 * 32, col, 0);
+}
+
+
+/* Only the Air Wizard gets through. Java: CloudCactusTile.mayPass() */
+PUBLIC boolean cloudcactustile_may_pass(Tile* this, Level* level, int x, int y, Entity* e) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
+
+#ifdef GODMODE
+    if (e->type == PLAYER) return true;
+#endif
+
+    return e->type == AIRWIZARD;
+}
+
+
+/* Pricks hard, 3 damage, everyone but the Air Wizard. */
+PUBLIC void cloudcactustile_bumped_into(Tile* this, Level* level, int xt, int yt, Entity* entity) {
+    (void) level;
+
+    if (entity->type == AIRWIZARD) return;
+
+    entity->hurt_tile(entity, this->id, xt, yt, 3);
+}
+
+
+/*
+ * A swing: shows the hit and, only if the damage is real, accumulates up
+ * to 10 before turning back into cloud.
+ */
+PUBLIC void cloudcactustile_hurt_dmg(Tile* this, Level* level, int x, int y, int dmg) {
+    (void) this;
+
+    int damage = level->get_data(level, x, y) + 1;
+
+    SmashParticle* smash = new(SmashParticle);
+
+    smashparticle_create(smash, x * 16 + 8, y * 16 + 8);
+    level->add(level, &smash->entity);
+
+    TextParticle* text = new(TextParticle);
+    String txt = new_array(char, 16);
+
+    sprintf(txt, "%d", dmg);
+    textparticle_create(text, txt, x * 16 + 8, y * 16 + 8, get_color4(-1, 500, 500, 500));
+    level->add(level, &text->entity);
+
+    if (dmg > 0) {
+        if (damage >= 10) {
+            level->set_tile(level, x, y, tiles[CLOUD], 0);
         } else {
-            level_set_data(level, x, y, damage);
+            level->set_data(level, x, y, damage);
         }
-	}
-
+    }
 }
 
 
-/* Hitting a cloud cactus with any tool damages the attacker instead. */
-char cloudcactustile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
-	if (item->id == TOOL) {
-		if (item->add.tool.type == PICKAXE) {
-			if (player_payStamina(player, 6 - item->add.tool.level)) {
-				cloudcactustile_hurt_(id, level, xt, yt, 1);
-				return 1;
-			}
-		}
-	}
-	return 0;
+/* The pickaxe mines it, spending stamina. */
+PUBLIC boolean cloudcactustile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
+    (void) attackDir;
+
+    if (item->id == TOOL) {
+        if (item->add.tool.type == PICKAXE) {
+            if (player_pay_stamina(player, 6 - item->add.tool.level)) {
+                cloudcactustile_hurt_dmg(this, level, xt, yt, 1);
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 
-/* Attacks against the cloud cactus do not break it: it only flashes
- * feedback and hurts the attacker back through the mob hurt path. */
-void cloudcactustile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
-	cloudcactustile_hurt_(id, level, x, y, 0);
-}
+/* Being attacked does not break it: it only shows the impact. */
+PUBLIC void cloudcactustile_hurt(Tile* this, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
+    (void) source;
+    (void) dmg;
+    (void) attackDir;
 
-
-/* Draws the cloud cactus sprite over the cloud background. */
-void cloudcactustile_render(TileID id, Screen* screen, Level* level, int x, int y) {
-	int col = getColor4(444, 111, 333, 555);
-
-	render_screen(screen, (x * 16) + 0, (y * 16) + 0, 17 + 1 * 32, col, 0);
-	render_screen(screen, (x * 16) + 8, (y * 16) + 0, 18 + 1 * 32, col, 0);
-	render_screen(screen, (x * 16) + 0, (y * 16) + 8, 17 + 2 * 32, col, 0);
-	render_screen(screen, (x * 16) + 8, (y * 16) + 8, 18 + 2 * 32, col, 0);
+    cloudcactustile_hurt_dmg(this, level, x, y, 0);
 }

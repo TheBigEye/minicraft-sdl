@@ -7,11 +7,12 @@
  * numbers, so bump MAJOR/MINOR/PATCH here before starting a new
  * X.Y.Z series.
  */
+
 #ifndef SOURCE_VERSION_H_
 #define SOURCE_VERSION_H_
 
 #define MAJOR 1
-#define MINOR 0
+#define MINOR 1
 #define PATCH 0
 
 /* VERSION is built from MAJOR/MINOR/PATCH via stringification, e.g.

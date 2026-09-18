@@ -1,109 +1,158 @@
 /*
- * crafting_menu.c - Crafting menu behavior (Java: CraftingMenu).
+ * crafting_menu.c - The crafting menu
+ *                   (Java: com.mojang.ld22.screen.CraftingMenu).
  */
-#include "../gfx/font.h"
-#include "../gfx/color.h"
 #include "crafting_menu.h"
-#include "../crafting/recipe.h"
-#include "../game.h"
-#include "../inputhandler.h"
-#include "../sound/sound.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-const menu_vt craftingmenu_vt = {
-	&craftingmenu_tick,
-	&craftingmenu_render,
-	&craftingmenu_init
-};
 
-ArrayList* crmenu_recipes = 0;
-static int selected = 0;
-/* Up/down cycle the recipe list (wrapping); confirming crafts the
- * selected recipe when affordable, then refreshes availability for
- * the whole list. */
-void craftingmenu_tick(){
+#include "../crafting/recipe.h"
+#include "../entity/inventory.h"
+#include "../entity/player.h"
+#include "../game.h"
+#include "../gfx/color.h"
+#include "../gfx/font.h"
+#include "../inputhandler.h"
+#include "../item/item.h"
+#include "../sound/sound.h"
+#include "menu.h"
 
-	if(menu.clicked) game_set_menu(0);
-	if(up.clicked) --selected;
-	if(down.clicked) ++selected;
 
-	int len = crmenu_recipes->size;
-	if(len == 0) selected = 0;
-	if(selected < 0) selected += len;
-	if(selected >= len) selected -= len;
+ArrayList* crmenu_recipes = null;
 
-	if(attack.clicked && len > 0){
-		Recipe* r = crmenu_recipes->elements[selected];
-		recipe_checkCanCraft(r, game_player);
-		if(r->canCraft){
-			recipe_deductCost(r, game_player);
-			recipe_craft(r, game_player);
-			sound_play(SND_CRAFT); // Sound.craft.play()
-		}
+CraftingMenu craftingmenu;
 
-		for(int i = 0; i < crmenu_recipes->size; ++i){
-			recipe_checkCanCraft(crmenu_recipes->elements[i], game_player);
-		}
-	}
+
+/* Java: new CraftingMenu(). Installs the methods and selects the first row. */
+PUBLIC void craftingmenu_create(CraftingMenu* this) {
+    this->selected = 0;
+
+    this->menu.tick = craftingmenu_tick;
+    this->menu.render = craftingmenu_render;
+    this->menu.init = craftingmenu_init;
 }
 
-/* Sorts craftable recipes ahead of unaffordable ones. */
-static int _cmpRec(const void* recipe, const void* recipe2){
-	Recipe* r1 = *(Recipe**)recipe;
-	Recipe* r2 = *(Recipe**)recipe2;
 
-	if(r1->canCraft && !r2->canCraft) return -1;
-	if(!r1->canCraft && r2->canCraft) return 1;
-	return 0;
+/*
+ * Java: CraftingMenu.tick().
+ *
+ * Up and down cycle the recipe list, wrapping around; confirming crafts the
+ * selected recipe when it is affordable, and then refreshes the
+ * availability of the whole list.
+ */
+PUBLIC void craftingmenu_tick(Menu* this) {
+    CraftingMenu* craft = (CraftingMenu*) this;
+
+    if (menu.clicked) game_set_menu(null);
+    if (up.clicked) --craft->selected;
+    if (down.clicked) ++craft->selected;
+
+    int len = crmenu_recipes->size;
+
+    if (len == 0) craft->selected = 0;
+    if (craft->selected < 0) craft->selected += len;
+    if (craft->selected >= len) craft->selected -= len;
+
+    if (attack.clicked && len > 0) {
+        Recipe* r = crmenu_recipes->elements[craft->selected];
+
+        recipe_check_can_craft(r, game_player);
+
+        if (r->canCraft) {
+            recipe_deduct_cost(r, game_player);
+            recipe_craft(r, game_player);
+            sound_play(SND_CRAFT);   /* Java: Sound.craft.play() */
+        }
+
+        for (int i = 0; i < crmenu_recipes->size; ++i) {
+            recipe_check_can_craft(crmenu_recipes->elements[i], game_player);
+        }
+    }
 }
 
-/* Re-checks every recipe against the inventory and sorts craftable
- * ones first. */
-void craftingmenu_init(){
-	selected = 0;
 
-	for(int i = 0; i < crmenu_recipes->size; ++i){
-		recipe_checkCanCraft(crmenu_recipes->elements[i], game_player);
-	}
-	qsort(crmenu_recipes->elements, crmenu_recipes->size, sizeof(*crmenu_recipes->elements), _cmpRec);
+/* Sorts the craftable recipes ahead of the unaffordable ones. */
+PRIVATE int craftingmenu_cmp(const void* recipe, const void* recipe2) {
+    Recipe* r1 = *(Recipe**) recipe;
+    Recipe* r2 = *(Recipe**) recipe2;
+
+    if (r1->canCraft && !r2->canCraft) return -1;
+    if (!r1->canCraft && r2->canCraft) return 1;
+
+    return 0;
 }
-/* Draws the recipe list plus the "Have"/"Cost" panels; costs are
- * dimmed while the player is short on that resource. */
-void craftingmenu_render(Screen* screen){
-	char s1[] = "Have";
-	char s2[] = "Cost";
-	char s3[] = "Crafting";
-	char buf[64] = {0};
-	font_renderFrame(screen, s1, strlen(s1), 12, 1, 19, 3);
-	font_renderFrame(screen, s2, strlen(s2), 12, 4, 19, 11);
-	font_renderFrame(screen, s3, strlen(s3), 0, 1, 11, 11);
-	menu_render_item_list(screen, 0, 1, 11, 11, crmenu_recipes, selected, recipe_renderInventory);
-	if(crmenu_recipes->size > 0){
-		Recipe* recipe = crmenu_recipes->elements[selected];
-		Item* result = &recipe->resultTemplate;
-		int hasResultItems = inventory_count(&game_player->inventory, result);
-		int xo = 13*8;
-		render_screen(screen, xo, 2*8, item_getSprite(result), item_getColor(result), 0);
-		sprintf(buf, "%d\00", hasResultItems);
-		font_draw(buf, strlen(buf), screen, xo + 8, 2*8, getColor4(-1, 555, 555, 555));
 
-		for(int i = 0; i < recipe->costs.size; ++i){
-			Item* item = recipe->costs.elements[i];
-			int yo = (5+i)*8;
-			render_screen(screen, xo, yo, item_getSprite(item), item_getColor(item), 0);
-			int requiredAmt = 1;
-			if(item->id == RESOURCE){
-				requiredAmt = item->add.resource.count;
-			}
 
-			int has = inventory_count(&game_player->inventory, item);
-			int color = getColor4(-1, 555, 555, 555);
-			if(has < requiredAmt) color = getColor4(-1, 222, 222, 222);
+/*
+ * Java: CraftingMenu.init().
+ *
+ * Re-checks every recipe against the inventory and sorts the craftable ones
+ * first.
+ */
+PUBLIC void craftingmenu_init(Menu* this) {
+    ((CraftingMenu*) this)->selected = 0;
 
-			if(has > 99) has = 99;
-			sprintf(buf, "%d/%d\00", requiredAmt, has);
-			font_draw(buf, strlen(buf), screen, xo+8, yo, color);
-		}
-	}
+    for (int i = 0; i < crmenu_recipes->size; ++i) {
+        recipe_check_can_craft(crmenu_recipes->elements[i], game_player);
+    }
+
+    qsort(crmenu_recipes->elements, crmenu_recipes->size, sizeof(*crmenu_recipes->elements), craftingmenu_cmp);
+}
+
+
+/*
+ * Java: CraftingMenu.render(Screen).
+ *
+ * Draws the recipe list plus the "Have" and "Cost" panels; a cost is dimmed
+ * while the player is short of that resource.
+ */
+PUBLIC void craftingmenu_render(Menu* this, Screen* screen) {
+    CraftingMenu* craft = (CraftingMenu*) this;
+
+    char s1[] = "Have";
+    char s2[] = "Cost";
+    char s3[] = "Crafting";
+    char buf[64] = {0};
+
+    font_render_frame(screen, s1, strlen(s1), 14, 1, 21, 3);
+    font_render_frame(screen, s2, strlen(s2), 14, 4, 21, 11);
+    font_render_frame(screen, s3, strlen(s3), 0, 1, 13, 11);
+
+    menu_render_item_list(screen, 0, 1, 13, 11, crmenu_recipes, craft->selected, recipe_render_inventory);
+
+    if (crmenu_recipes->size > 0) {
+        Recipe* recipe = crmenu_recipes->elements[craft->selected];
+        Item* result = &recipe->resultTemplate;
+        int hasResultItems = inventory_count(&game_player->inventory, result);
+        int xo = 15 * 8;
+
+        screen->render(screen, xo, 2 * 8, item_get_sprite(result), item_get_color(result), 0);
+
+        sprintf(buf, "%d", hasResultItems);
+        font_draw(buf, strlen(buf), screen, xo + 8, 2 * 8, get_color4(-1, 555, 555, 555));
+
+        for (int i = 0; i < recipe->costs.size; ++i) {
+            Item* item = recipe->costs.elements[i];
+            int yo = (5 + i) * 8;
+
+            screen->render(screen, xo, yo, item_get_sprite(item), item_get_color(item), 0);
+
+            int requiredAmt = 1;
+
+            if (item->id == RESOURCE) {
+                requiredAmt = item->add.resource.count;
+            }
+
+            int has = inventory_count(&game_player->inventory, item);
+            int color = get_color4(-1, 555, 555, 555);
+
+            if (has < requiredAmt) color = get_color4(-1, 222, 222, 222);
+            if (has > 99) has = 99;
+
+            sprintf(buf, "%d/%d", requiredAmt, has);
+            font_draw(buf, strlen(buf), screen, xo + 8, yo, color);
+        }
+    }
 }

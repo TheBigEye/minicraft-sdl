@@ -1,22 +1,32 @@
 /*
- * smashparticle.h - Burst effect shown when something is smashed
- *                   (tiles broken, furniture picked up, ...).
+ * smashparticle.h - The burst shown when something is smashed: a broken
+ *                   tile, furniture picked back up...
+ *                   (Java: com.mojang.ld22.entity.particle.SmashParticle).
  */
 #ifndef SMASHPARTICLE_H
-#define SMASHPARTICLE_H
-#include "../entity.h"
-#include "../../gfx/screen.h"
+#define SMASHPARTICLE_H 1
 
-typedef struct{
-	Entity entity;
-	int time;   /* ticks alive; the burst lasts 10 */
-} SmashParticle;
+#include "../entity.h"
+
+#include "../../gfx/screen.h"
+#include "../../utils/javalang.h"
+
+typedef struct SmashParticle SmashParticle;
+
+struct SmashParticle {
+    /* Inheritance: Entity, always the first member. */
+    Entity entity;
+    /* Ticks alive; the burst lasts 10. Java: `private int time` */
+    int time;
+};
 
 /* Spawns the burst at pixel (x, y) and plays the smash sound. */
-void smashparticle_create(SmashParticle* particle, int x, int y);
-/* Ages the burst; removes it after its lifetime. */
-void smashparticle_tick(SmashParticle* particle);
-/* Draws the four-quadrant mirrored tile burst. */
-void smashparticle_render(SmashParticle* particle, Screen* screen);
+PUBLIC void smashparticle_create(SmashParticle* this, int x, int y);
 
-#endif // SMASHPARTICLE_H
+/* Ages the burst and removes it once its lifetime is over. Java: tick() */
+PUBLIC void smashparticle_tick(SmashParticle* this);
+
+/* Draws the four-quadrant mirrored tile burst. Java: render(Screen) */
+PUBLIC void smashparticle_render(SmashParticle* this, Screen* screen);
+
+#endif /* SMASHPARTICLE_H */

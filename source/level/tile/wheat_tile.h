@@ -1,21 +1,39 @@
 /*
- * wheat_tile.h - Wheat tile: crop planted on farmland; its data byte
- *                is the growth age (max 50).
+ * wheat_tile.h - The wheat tile (Java: tile.WheatTile).
+ *
+ * It grows on farmland up to age 50; once ripe it is harvested by hitting
+ * or stepping on it, and drops seeds plus wheat according to its age.
  */
 #ifndef LEVEL_TILE_WHEAT_TILE_H_
-#define LEVEL_TILE_WHEAT_TILE_H_
+#define LEVEL_TILE_WHEAT_TILE_H_ 1
 
 #include "tile.h"
 
-void wheat_tile_init(TileID id);
-void wheattile_render(TileID id, Screen* screen, Level* level, int x, int y);
-/* Grows the crop one age step per tick (half the ticks). */
-void wheattile_tick(TileID id, Level* level, int xt, int yt);
-/* Any attack harvests the crop. */
-void wheattile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir);
-/* Collects seeds and wheat according to the crop's age. */
-void wheattile_harvest(TileID id, Level* level, int x, int y);
-/* Shovel clears the crop (and the farmland) back to dirt. */
-char wheattile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
+#include "../level.h"
+#include "../../entity/entity.h"
+#include "../../entity/mob.h"
+#include "../../entity/player.h"
+#include "../../item/item.h"
 
-#endif /* LEVEL_TILE_WATER_TILE_H_ */
+/* Constructor */
+PUBLIC void wheat_tile_init(Tile* this, TileID id);
+
+/* Java: WheatTile.render(Screen, Level, int, int) */
+PUBLIC void wheattile_render(Tile* this, Screen* screen, Level* level, int x, int y);
+
+/* Java: WheatTile.tick(Level, int, int) */
+PUBLIC void wheattile_tick(Tile* this, Level* level, int xt, int yt);
+
+/* Java: WheatTile.hurt(Level, int, int, Mob, int, int) */
+PUBLIC void wheattile_hurt(Tile* this, Level* level, int x, int y, Mob* source, int dmg, int attackDir);
+
+/* Drops the harvest and turns the square back into dirt. Java: harvest() */
+PUBLIC void wheattile_harvest(Tile* this, Level* level, int x, int y);
+
+/* Java: WheatTile.steppedOn(Level, int, int, Entity) */
+PUBLIC void wheattile_stepped_on(Tile* this, Level* level, int xt, int yt, Entity* entity);
+
+/* Java: WheatTile.interact(Level, int, int, Player, Item, int) */
+PUBLIC boolean wheattile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir);
+
+#endif /* LEVEL_TILE_WHEAT_TILE_H_ */

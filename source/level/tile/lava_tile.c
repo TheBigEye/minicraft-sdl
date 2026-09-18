@@ -1,59 +1,110 @@
 /*
- * lava_tile.c - Lava tile behavior (Java: tile.LavaTile).
+ * lava_tile.c - Behaviour of lava (Java: tile.LavaTile).
+ *
+ * It glows (radius 6), is crossable only by swimming, and is drawn animated
+ * with a Random seeded from the position and the tick, just like water.
  */
 #include "tile.h"
+#include "lava_tile.h"
+
 #include "../../gfx/color.h"
+#include "../../utils/javarandom.h"
 
-static Random wRandom;
-static Random trandom;
+/* The animation generator (Java: the local Random of render()). */
+STATIC Random wRandom;
 
-/* Registers the lava connection flags and seeds the spread RNG. */
-void lavatile_init(TileID id){
-	tile_init(id);
-	
-	Tile* tile = tiles + id;
-	tile->connectsToSand = tile->connectsToLava = 1;
-	random_set_seed(&trandom, getTimeUS() / 1000); 
+
+/* Constructor: a liquid that connects to sand and to itself. */
+PUBLIC void lavatile_init(Tile* this, TileID id) {
+    tile_init(this, id);
+
+    this->render           = lavatile_render;
+    this->tick             = lavatile_tick;
+    this->may_pass         = lavatile_may_pass;
+    this->get_light_radius = lavatile_get_light_radius;
+
+    this->connects_to_sand = true;
+    this->connects_to_lava = true;
+
+    random_create(&wRandom);
 }
 
-/* Draws the animated lava surface from a position/tick-seeded RNG,
- * blending edges against sand and solid ground. */
-void lavatile_render(TileID id, Screen* screen, Level* level, int x, int y){
-	random_set_seed(&wRandom, ((tile_tickCount + (x / 2 - y) * 4311) / 10 * 54687121 + x * 3271612 + y * 3412987161));
-	int col = getColor4(500, 500, 520, 550);
-	int transitionColor1 = getColor4(3, 500, level->dirtColor - 111, level->dirtColor);
-	int transitionColor2 = getColor4(3, 500, level->sandColor - 110, level->sandColor);
 
-	char u = !tiles[level_get_tile(level, x, y - 1)].connectsToLava;
-	char d = !tiles[level_get_tile(level, x, y + 1)].connectsToLava;
-	char l = !tiles[level_get_tile(level, x - 1, y)].connectsToLava;
-	char r = !tiles[level_get_tile(level, x + 1, y)].connectsToLava;
+/* Crossable only by swimming. Java: LavaTile.mayPass() { return e.canSwim(); } */
+PUBLIC boolean lavatile_may_pass(Tile* this, Level* level, int x, int y, Entity* e) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
 
-	char su = u && tiles[level_get_tile(level, x, y - 1)].connectsToSand;
-	char sd = d && tiles[level_get_tile(level, x, y + 1)].connectsToSand;
-	char sl = l && tiles[level_get_tile(level, x - 1, y)].connectsToSand;
-	char sr = r && tiles[level_get_tile(level, x + 1, y)].connectsToSand;
-
-	if (!u && !l) render_screen(screen, x * 16 + 0, y * 16 + 0, random_next_int(&wRandom, 4), col, random_next_int(&wRandom, 4));
-	else render_screen(screen, x * 16 + 0, y * 16 + 0, (l ? 14 : 15) + (u ? 0 : 1) * 32, (su || sl) ? transitionColor2 : transitionColor1, 0);
-
-	if (!u && !r) render_screen(screen, x * 16 + 8, y * 16 + 0, random_next_int(&wRandom, 4), col, random_next_int(&wRandom, 4));
-	else render_screen(screen, x * 16 + 8, y * 16 + 0, (r ? 16 : 15) + (u ? 0 : 1) * 32, (su || sr) ? transitionColor2 : transitionColor1, 0);
-
-	if (!d && !l) render_screen(screen, x * 16 + 0, y * 16 + 8, random_next_int(&wRandom, 4), col, random_next_int(&wRandom, 4));
-	else render_screen(screen, x * 16 + 0, y * 16 + 8, (l ? 14 : 15) + (d ? 2 : 1) * 32, (sd || sl) ? transitionColor2 : transitionColor1, 0);
-	
-	if (!d && !r) render_screen(screen, x * 16 + 8, y * 16 + 8, random_next_int(&wRandom, 4), col, random_next_int(&wRandom, 4));
-	else render_screen(screen, x * 16 + 8, y * 16 + 8, (r ? 16 : 15) + (d ? 2 : 1) * 32, (sd || sr) ? transitionColor2 : transitionColor1, 0);
+    return e->can_swim(e);
 }
 
-/* Slowly spreads lava into a random adjacent hole tile. */
-void lavatile_tick(TileID id, Level* level, int xt, int yt){
-	int xn = xt;
-	int yn = yt;
-	
-	if(random_next_boolean(&trandom)) xn += random_next_int(&trandom, 2) * 2 - 1;
-	else yn += random_next_int(&trandom, 2) * 2 - 1;
-	
-	if(level_get_tile(level, xn, yn) == HOLE) level_set_tile(level, xn, yn, id, 0);
+
+/* Lava glows: it is the only light source in the game. */
+PUBLIC int lavatile_get_light_radius(Tile* this, Level* level, int x, int y) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
+
+    return 6;
+}
+
+
+/* Animated surface, with edges against sand or ground. */
+PUBLIC void lavatile_render(Tile* this, Screen* screen, Level* level, int x, int y) {
+    (void) this;
+
+    wRandom.set_seed(&wRandom, (tile_tick_count + (x / 2 - y) * 4311) / 10 * 54687121 + x * 3271612 + y * 3412987161);
+
+    int col = get_color4(500, 500, 520, 550);
+    int transitionColor1 = get_color4(3, 500, level->dirtColor - 111, level->dirtColor);
+    int transitionColor2 = get_color4(3, 500, level->sandColor - 110, level->sandColor);
+
+    Tile* up    = level->get_tile(level, x, y - 1);
+    Tile* down  = level->get_tile(level, x, y + 1);
+    Tile* left  = level->get_tile(level, x - 1, y);
+    Tile* right = level->get_tile(level, x + 1, y);
+
+    boolean u = !up->connects_to_lava;
+    boolean d = !down->connects_to_lava;
+    boolean l = !left->connects_to_lava;
+    boolean r = !right->connects_to_lava;
+
+    boolean su = u && up->connects_to_sand;
+    boolean sd = d && down->connects_to_sand;
+    boolean sl = l && left->connects_to_sand;
+    boolean sr = r && right->connects_to_sand;
+
+    if (!u && !l) screen->render(screen, x * 16 + 0, y * 16 + 0, wRandom.next_int(&wRandom, 4), col, wRandom.next_int(&wRandom, 4));
+    else screen->render(screen, x * 16 + 0, y * 16 + 0, (l ? 14 : 15) + (u ? 0 : 1) * 32, (su || sl) ? transitionColor2 : transitionColor1, 0);
+
+    if (!u && !r) screen->render(screen, x * 16 + 8, y * 16 + 0, wRandom.next_int(&wRandom, 4), col, wRandom.next_int(&wRandom, 4));
+    else screen->render(screen, x * 16 + 8, y * 16 + 0, (r ? 16 : 15) + (u ? 0 : 1) * 32, (su || sr) ? transitionColor2 : transitionColor1, 0);
+
+    if (!d && !l) screen->render(screen, x * 16 + 0, y * 16 + 8, wRandom.next_int(&wRandom, 4), col, wRandom.next_int(&wRandom, 4));
+    else screen->render(screen, x * 16 + 0, y * 16 + 8, (l ? 14 : 15) + (d ? 2 : 1) * 32, (sd || sl) ? transitionColor2 : transitionColor1, 0);
+
+    if (!d && !r) screen->render(screen, x * 16 + 8, y * 16 + 8, wRandom.next_int(&wRandom, 4), col, wRandom.next_int(&wRandom, 4));
+    else screen->render(screen, x * 16 + 8, y * 16 + 8, (r ? 16 : 15) + (d ? 2 : 1) * 32, (sd || sr) ? transitionColor2 : transitionColor1, 0);
+}
+
+
+/* Little by little the lava spreads into a neighbouring hole. */
+PUBLIC void lavatile_tick(Tile* this, Level* level, int xt, int yt) {
+    Random* random = &this->random;
+
+    int xn = xt;
+    int yn = yt;
+
+    if (random->next_boolean(random)) {
+        xn += random->next_int(random, 2) * 2 - 1;
+    } else {
+        yn += random->next_int(random, 2) * 2 - 1;
+    }
+
+    if (level->get_tile(level, xn, yn) == tiles[HOLE]) {
+        level->set_tile(level, xn, yn, this, 0);
+    }
 }

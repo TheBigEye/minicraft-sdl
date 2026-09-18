@@ -1,19 +1,25 @@
 /*
- * utils.h - Small platform helpers: string casing, wall clock and a
- *           double absolute value.
+ * utils.h - Small platform helpers: string casing, the wall clock and an
+ *           absolute value for doubles.
+ *
+ * Java has no counterpart for these; they stand in for what the original
+ * gets from the JDK, chiefly System.currentTimeMillis().
  */
 #ifndef UTILS_UTILS_H_
 #define UTILS_UTILS_H_ 1
 
-/* Upper-cases `size` bytes of `str` in place (ASCII letters only). */
-void strToUpper(char* str, int size);
+#include "javalang.h"
+
+/* Upper-cases the first `size` bytes of `str` in place (ASCII letters only). */
+PUBLIC void str_to_upper(char* str, int size);
 
 /* Microseconds since the epoch; drives the main loop timing. */
-unsigned long long int getTimeUS();
-/* Same clock in milliseconds. */
-unsigned long long int getTimeMS();
+PUBLIC unsigned long long int get_time_us();
+
+/* The same clock, in milliseconds. */
+PUBLIC unsigned long long int get_time_ms();
 
 /* Absolute value of a double. */
-double dabs(double d);
+PUBLIC double dabs(double d);
 
 #endif /* UTILS_UTILS_H_ */

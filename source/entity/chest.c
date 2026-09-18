@@ -1,71 +1,61 @@
 /*
- * chest.c - Chest furniture (Java: com.mojang.ld22.entity.Chest).
+ * chest.c - The Chest furniture (Java: com.mojang.ld22.entity.Chest).
  *
- * Unlike the crafting stations, a chest stores items: it owns an
- * Inventory freed together with the chest, and using it opens the
- * container menu bound to that inventory.
+ * Unlike the crafting stations, a chest stores items: it owns an Inventory
+ * that is freed together with the chest, and using it opens the container
+ * menu bound to that inventory.
  */
 #include "chest.h"
-#include <stdlib.h>
-#include "player.h"
-#include "inventory.h"
-#include "../screen/container_menu.h"
-#include "../game.h"
-#include "../gfx/color.h"
 
+#include <stdlib.h>
 #include <string.h>
 
+#include "../game.h"
+#include "../gfx/color.h"
+#include "../screen/container_menu.h"
+#include "inventory.h"
+#include "player.h"
 
-/* The Chest vtable (= the Java `Chest` class): Furniture + use() + free(). */
-static const EntityVTable chest_vtable = {
-	.tick           = (vt_tick_fn) furniture_tick,
-	.render         = (vt_render_fn) furniture_render,
-	.blocks         = (vt_blocks_fn) furniture_blocks,
-	.hurt           = entity_hurt,
-	.hurtTile       = entity_hurtTile,
-	.touchedBy      = (vt_touchedBy_fn) furniture_touchedBy,
-	.isBlockableBy  = entity_isBlockableBy,
-	.touchItem      = entity_touchItem,
-	.canSwim        = entity_canSwim,
-	.use            = (vt_use_fn) chest_use,
-	.getLightRadius = entity_getLightRadius,
-	.die            = entity_die,
-	.doHurt         = entity_doHurt,
-	.isSwimming     = entity_isSwimming,
-	.free           = (vt_free_fn) chest_free,
-};
 
-/* Spawns a chest and creates the empty inventory it stores. */
-void chest_create(Chest* chest){
-	char* name = malloc(strlen("Chest") + 1); //XXX ew
-	strcpy(name, "Chest");
+/* Constructor: spawns a chest and creates the empty inventory it stores. */
+PUBLIC void chest_create(Chest* this) {
+    /* XXX ew: the name has to outlive this call, so it is heap-allocated. */
+    String name = new_array(char, strlen("Chest") + 1);
 
-	furniture_create((Furniture *) chest, name);
-	chest->furniture.entity.vt = &chest_vtable;
+    strcpy(name, "Chest");
 
-	chest->furniture.entity.type = CHEST;
-	chest->furniture.col = getColor4(-1, 110, 331, 552);
-	chest->furniture.sprite = 1;
+    furniture_create(&this->furniture, name);
 
-	inventory_create(&chest->inventory);
+    /* Java: class Chest extends Furniture, plus its own destructor, which
+     * releases the inventory. */
+    this->furniture.entity.use  = (entity_use_fn) chest_use;
+    this->furniture.entity.free = (entity_free_fn) chest_free;
+
+    this->furniture.entity.type = CHEST;
+    this->furniture.col = get_color4(-1, 110, 331, 552);
+    this->furniture.sprite = 1;
+
+    inventory_create(&this->inventory);
 }
 
 
 /* Opens the container menu over this chest's own inventory. */
-char chest_use(Chest* chest, struct _Player* player, int attackDir){
-	strcpy(contmenu_title, "Chest");
-	contmenu_container = &chest->inventory;
-	game_set_menu(mid_CONTAINER);
+PUBLIC boolean chest_use(Chest* this, struct Player* player, int attackDir) {
+    (void) player;
+    (void) attackDir;
 
-	// player.game.setMenu(new ContainerMenu(player, "Chest", inventory));
-	// TODO container menu
+    strcpy(contmenu_title, "Chest");
+    contmenu_container = &this->inventory;
+    game_set_menu(mid_CONTAINER);
 
-	return 1;
+    /* Java: player.game.setMenu(new ContainerMenu(player, "Chest", inventory)); */
+
+    return true;
 }
 
 
 /* Releases the furniture name and the chest inventory. */
-void chest_free(Chest* chest){
-	furniture_free((Furniture *) chest);
-	inventory_free(&chest->inventory);
+PUBLIC void chest_free(Chest* this) {
+    furniture_free(&this->furniture);
+    inventory_free(&this->inventory);
 }

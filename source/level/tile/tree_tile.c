@@ -1,160 +1,213 @@
 /*
- * tree_tile.c - Tree tile behavior (Java: tile.TreeTile).
+ * tree_tile.c - Behaviour of the tree (Java: tile.TreeTile).
  *
- * Takes 20 accumulated damage to fell; falling trees drop wood plus
- * possible acorns, and any hit may shake an apple loose.
+ * Damage accumulates in the data byte: at 20 points the tree falls,
+ * leaving grass, and drops wood and acorns. Every hit may also shake an
+ * apple loose.
  */
 #include "tile.h"
-#include <stdlib.h>
-#include "../../entity/particle/smashparticle.h"
-#include "../../entity/particle/textparticle.h"
-#include "../../entity/itementity.h"
-#include "../../item/resourceitem.h"
-#include "../../gfx/color.h"
+#include "tree_tile.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "../../entity/itementity.h"
+#include "../../entity/particle/smashparticle.h"
+#include "../../entity/particle/textparticle.h"
+#include "../../gfx/color.h"
+#include "../../item/resourceitem.h"
 
 
-/* Registers the tree connection flags. */
-void treetile_init(TileID id) {
-	tile_init(id);
-	tiles[id].connectsToGrass = 1;
+/* Constructor: a solid tree, blending with grass and felled with an axe. */
+PUBLIC void treetile_init(Tile* this, TileID id) {
+    tile_init(this, id);
+
+    this->render   = treetile_render;
+    this->may_pass = treetile_may_pass;
+    this->hurt     = treetile_hurt;
+    this->interact = treetile_interact;
+    this->tick     = treetile_tick;
+
+    this->connects_to_grass = true;
 }
 
 
-/* Internal chop-damage helper: may shake apples loose, shows smash
- * and damage feedback, and at 20 damage fells the tree into grass
- * dropping wood and possibly acorns. */
-void treetile_hurt2(TileID id, Level* level, int x, int y, int dmg) {
-	int count = random_next_int(&tiles[id].random, 10) == 0 ? 1 : 0;
-	Random* random = &tiles[id].random;
+/* The tree is solid. Java: TreeTile.mayPass() { return false; } */
+PUBLIC boolean treetile_may_pass(Tile* this, Level* level, int x, int y, Entity* e) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
 
-	for (int i = 0; i < count; i++) {
+#ifdef GODMODE
+    if (e->type == PLAYER) return true;
+#else
+    (void) e;
+#endif
+
+    return false;
+}
+
+
+/*
+ * Accumulated damage: it may shake an apple loose, shows the hit and, at
+ * 20, fells the tree, dropping wood and acorns.
+ * Java: TreeTile.hurt(Level, int, int, int dmg)
+ */
+PUBLIC void treetile_hurt_dmg(Tile* this, Level* level, int x, int y, int dmg) {
+    Random* random = &this->random;
+
+    int count = random->next_int(random, 10) == 0 ? 1 : 0;
+
+    for (int i = 0; i < count; i++) {
         Item res;
-		ItemEntity* ent = malloc(sizeof(ItemEntity));
-		resourceitem_create(&res, &apple);
+        ItemEntity* ent = new(ItemEntity);
 
-		int xx = (x * 16) + random_next_int(random, 10) + 3;
-		int yy = (y * 16) + random_next_int(random, 10) + 3;
+        resourceitem_create(&res, &apple);
 
-		itementity_create(ent, res, xx, yy);
-		level_addEntity(level, &ent->entity);
-	}
+        int xx = x * 16 + random->next_int(random, 10) + 3;
+        int yy = y * 16 + random->next_int(random, 10) + 3;
 
-	int damage = level_get_data(level, x, y) + dmg;
-	SmashParticle* smash = malloc(sizeof(SmashParticle));
-	smashparticle_create(smash, (x * 16) + 8, (y * 16) + 8);
-	level_addEntity(level, &smash->entity);
+        itementity_create(ent, res, xx, yy);
+        level->add(level, &ent->entity);
+    }
 
-	TextParticle* text = malloc(sizeof(TextParticle));
-	char* txt = malloc(16);
-	sprintf(txt, "%d", dmg);
-	textparticle_create(text, txt, (x * 16) + 8, (y * 16) + 8, getColor4(-1, 500, 500, 500));
-	level_addEntity(level, &text->entity);
+    int damage = level->get_data(level, x, y) + dmg;
 
-	if (damage >= 20) {
-		int count = random_next_int(random, 2) + 1;
+    SmashParticle* smash = new(SmashParticle);
 
-		for (int i = 0; i < count; ++i) {
+    smashparticle_create(smash, x * 16 + 8, y * 16 + 8);
+    level->add(level, &smash->entity);
+
+    TextParticle* text = new(TextParticle);
+    String txt = new_array(char, 16);
+
+    sprintf(txt, "%d", dmg);
+    textparticle_create(text, txt, x * 16 + 8, y * 16 + 8, get_color4(-1, 500, 500, 500));
+    level->add(level, &text->entity);
+
+    if (damage >= 20) {
+        count = random->next_int(random, 2) + 1;
+
+        for (int i = 0; i < count; ++i) {
             Item res;
-			ItemEntity* ent = malloc(sizeof(ItemEntity));
-			resourceitem_create(&res, &wood);
+            ItemEntity* ent = new(ItemEntity);
 
-			int xx = (x * 16) + random_next_int(random, 10) + 3;
-			int yy = (y * 16) + random_next_int(random, 10) + 3;
+            resourceitem_create(&res, &wood);
 
-			itementity_create(ent, res, xx, yy);
-			level_addEntity(level, &ent->entity);
-		}
+            int xx = x * 16 + random->next_int(random, 10) + 3;
+            int yy = y * 16 + random->next_int(random, 10) + 3;
 
-		count = random_next_int(random, random_next_int(random, 4) + 1);
-		for (int i = 0; i < count; ++i) {
+            itementity_create(ent, res, xx, yy);
+            level->add(level, &ent->entity);
+        }
+
+        count = random->next_int(random, random->next_int(random, 4) + 1);
+
+        for (int i = 0; i < count; ++i) {
             Item res;
-			ItemEntity* ent = malloc(sizeof(ItemEntity));
-			resourceitem_create(&res, &acorn);
+            ItemEntity* ent = new(ItemEntity);
 
-			int xx = (x * 16) + random_next_int(random, 10) + 3;
-			int yy = (y * 16) + random_next_int(random, 10) + 3;
+            resourceitem_create(&res, &acorn);
 
-			itementity_create(ent, res, xx, yy);
-			level_addEntity(level, &ent->entity);
-		}
+            int xx = x * 16 + random->next_int(random, 10) + 3;
+            int yy = y * 16 + random->next_int(random, 10) + 3;
 
-		level_set_tile(level, x, y, GRASS, 0);
-	} else {
-		level_set_data(level, x, y, damage);
-	}
-}
+            itementity_create(ent, res, xx, yy);
+            level->add(level, &ent->entity);
+        }
 
+        level->set_tile(level, x, y, tiles[GRASS], 0);
 
-/* Forwards mob damage into the chop-damage path. */
-void treetile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
-	treetile_hurt2(id, level, x, y, dmg);
-}
-
-
-/* Draws the canopy quadrants, showing bark sprites where neighboring
- * tree tiles form the trunk. */
-void treetile_render(TileID id, Screen* screen, Level* level, int x, int y) {
-	int col = getColor4(10, 30, 151, level->grassColor);
-	int barkCol1 = getColor4(10, 30, 430, level->grassColor);
-	int barkCol2 = getColor4(10, 30, 320, level->grassColor);
-
-	char u = level_get_tile(level, x, y - 1) == id;
-	char l = level_get_tile(level, x - 1, y) == id;
-	char r = level_get_tile(level, x + 1, y) == id;
-	char d = level_get_tile(level, x, y + 1) == id;
-
-	char ul = level_get_tile(level, x - 1, y - 1) == id;
-	char ur = level_get_tile(level, x + 1, y - 1) == id;
-	char dl = level_get_tile(level, x - 1, y + 1) == id;
-	char dr = level_get_tile(level, x + 1, y + 1) == id;
-
-	if (u && ul && l) {
-        render_screen(screen, (x * 16) + 0, (y * 16) + 0, 10 + 1 * 32, col, 0);
     } else {
-        render_screen(screen, (x * 16) + 0, (y * 16) + 0, 9 + 0 * 32, col, 0);
-    }
-
-	if (u && ur && r) {
-        render_screen(screen, (x * 16) + 8, (y * 16) + 0, 10 + 2 * 32, barkCol2, 0);
-    } else {
-        render_screen(screen, (x * 16) + 8, (y * 16) + 0, 10 + 0 * 32, col, 0);
-    }
-
-	if (d && dl && l) {
-        render_screen(screen, (x * 16) + 0, (y * 16) + 8, 10 + 2 * 32, barkCol2, 0);
-    } else {
-        render_screen(screen, (x * 16) + 0, (y * 16) + 8, 9 + 1 * 32, barkCol1, 0);
-    }
-
-	if (d && dr && r) {
-        render_screen(screen, (x * 16) + 8, (y * 16) + 8, 10 + 1 * 32, col, 0);
-    } else {
-        render_screen(screen, (x * 16) + 8, (y * 16) + 8, 10 + 3 * 32, barkCol2, 0);
+        level->set_data(level, x, y, damage);
     }
 }
 
 
-/* Heals one point of accumulated damage per tick, if any. */
-void treetile_tick(TileID id, Level* level, int xt, int yt) {
-	int damage = level_get_data(level, xt, yt);
-	if (damage) {
-        level_set_data(level, xt, yt, damage - 1);
+/* A mob's damage comes in through the same path as the axe's. */
+PUBLIC void treetile_hurt(Tile* this, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
+    (void) source;
+    (void) attackDir;
+
+    treetile_hurt_dmg(this, level, x, y, dmg);
+}
+
+
+/* Draws the canopy, with bark where the neighbours form the trunk. */
+PUBLIC void treetile_render(Tile* this, Screen* screen, Level* level, int x, int y) {
+    int col = get_color4(10, 30, 151, level->grassColor);
+    int barkCol1 = get_color4(10, 30, 430, level->grassColor);
+    int barkCol2 = get_color4(10, 30, 320, level->grassColor);
+
+    boolean u = level->get_tile(level, x, y - 1) == this;
+    boolean l = level->get_tile(level, x - 1, y) == this;
+    boolean r = level->get_tile(level, x + 1, y) == this;
+    boolean d = level->get_tile(level, x, y + 1) == this;
+
+    boolean ul = level->get_tile(level, x - 1, y - 1) == this;
+    boolean ur = level->get_tile(level, x + 1, y - 1) == this;
+    boolean dl = level->get_tile(level, x - 1, y + 1) == this;
+    boolean dr = level->get_tile(level, x + 1, y + 1) == this;
+
+    if (u && ul && l) {
+        screen->render(screen, x * 16 + 0, y * 16 + 0, 10 + 1 * 32, col, 0);
+    } else {
+        screen->render(screen, x * 16 + 0, y * 16 + 0, 9 + 0 * 32, col, 0);
+    }
+
+    if (u && ur && r) {
+        screen->render(screen, x * 16 + 8, y * 16 + 0, 10 + 2 * 32, barkCol2, 0);
+    } else {
+        screen->render(screen, x * 16 + 8, y * 16 + 0, 10 + 0 * 32, col, 0);
+    }
+
+    if (d && dl && l) {
+        screen->render(screen, x * 16 + 0, y * 16 + 8, 10 + 2 * 32, barkCol2, 0);
+    } else {
+        screen->render(screen, x * 16 + 0, y * 16 + 8, 9 + 1 * 32, barkCol1, 0);
+    }
+
+    if (d && dr && r) {
+        screen->render(screen, x * 16 + 8, y * 16 + 8, 10 + 1 * 32, col, 0);
+    } else {
+        screen->render(screen, x * 16 + 8, y * 16 + 8, 10 + 3 * 32, barkCol2, 0);
     }
 }
 
 
-/* Axe interaction: each swing lands a random chunk of damage scaled
- * by the tool level. */
-char treetile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir) {
-	if (item->id == TOOL) {
-		if (item->add.tool.type == AXE) {
-			if (player_payStamina(player, 4 - item->add.tool.level)) {
-				treetile_hurt2(id, level, xt, yt, random_next_int(&tiles[id].random, 10) + (item->add.tool.level * 5) + 10);
-				return 1;
-			}
-		}
-	}
-	return 0;
+/* Heals one point of accumulated damage per tick, if any is left. */
+PUBLIC void treetile_tick(Tile* this, Level* level, int xt, int yt) {
+    (void) this;
+
+    int damage = level->get_data(level, xt, yt);
+
+    /*
+     * Java: `if (damage > 0)`. Not `if (damage)`: the data byte is signed
+     * in both versions, so a negative value (a tile whose data was set
+     * past 127) would otherwise keep decreading here, wrapping around
+     * instead of staying where it is.
+     */
+    if (damage > 0) {
+        level->set_data(level, xt, yt, damage - 1);
+    }
+}
+
+
+/* The axe fells it: damage proportional to the tool's level. */
+PUBLIC boolean treetile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
+    (void) attackDir;
+
+    if (item->id == TOOL) {
+        if (item->add.tool.type == AXE) {
+            if (player_pay_stamina(player, 4 - item->add.tool.level)) {
+                int dmg = this->random.next_int(&this->random, 10) + item->add.tool.level * 5 + 10;
+
+                treetile_hurt_dmg(this, level, xt, yt, dmg);
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
