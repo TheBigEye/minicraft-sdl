@@ -1,59 +1,53 @@
 /*
- * oven.c - Oven furniture (Java: com.mojang.ld22.entity.Oven).
+ * oven.c - The Oven furniture (Java: com.mojang.ld22.entity.Oven).
  *
- * A placeable stationary entity; using it opens the crafting menu
- * with the oven recipe list (cooking food).
+ * A placeable stationary entity; using it opens the crafting menu with the
+ * oven recipe list, that is, cooking food.
  */
 #include "oven.h"
-#include <stdlib.h>
-#include "furniture.h"
-#include "../game.h"
-#include "../crafting/crafting.h"
-#include "../screen/crafting_menu.h"
-#include "../gfx/color.h"
 
+#include <stdlib.h>
 #include <string.h>
 
-/* The Oven vtable (= the Java `Oven` class): Furniture + use(). */
-static const EntityVTable oven_vtable = {
-	.tick           = (vt_tick_fn) furniture_tick,
-	.render         = (vt_render_fn) furniture_render,
-	.blocks         = (vt_blocks_fn) furniture_blocks,
-	.hurt           = entity_hurt,
-	.hurtTile       = entity_hurtTile,
-	.touchedBy      = (vt_touchedBy_fn) furniture_touchedBy,
-	.isBlockableBy  = entity_isBlockableBy,
-	.touchItem      = entity_touchItem,
-	.canSwim        = entity_canSwim,
-	.use            = (vt_use_fn) oven_use,
-	.getLightRadius = entity_getLightRadius,
-	.die            = entity_die,
-	.doHurt         = entity_doHurt,
-	.isSwimming     = entity_isSwimming,
-	.free           = (vt_free_fn) furniture_free,
-};
+#include "../crafting/crafting.h"
+#include "../game.h"
+#include "../gfx/color.h"
+#include "../screen/crafting_menu.h"
+#include "furniture.h"
+
 
 /*
- * Spawns an oven: furniture named "Oven", sprite 2, baked-clay
- * palette and the small 3x2 collision box of crafting stations.
+ * Constructor: spawns an oven, that is, furniture named "Oven", sprite 2,
+ * in a baked-clay palette and with the small 3x2 collision box of the
+ * crafting stations.
  */
-void oven_create(Oven* oven){
-	char* name = malloc(strlen("Oven") + 1); //XXX ew
-	strcpy(name, "Oven");
+PUBLIC void oven_create(Oven* this) {
+    /* XXX ew: the name has to outlive this call, so it is heap-allocated. */
+    String name = new_array(char, strlen("Oven") + 1);
 
-	furniture_create((Furniture *) oven, name);
-	oven->entity.vt = &oven_vtable;
+    strcpy(name, "Oven");
 
-	oven->entity.type = OVEN;
-	oven->col = getColor4(-1, 000, 332, 442);
-	oven->sprite = 2;
-	oven->entity.xr = 3;
-	oven->entity.yr = 2;
+    furniture_create(this, name);
+
+    /* Java: class Oven extends Furniture */
+    this->entity.use = (entity_use_fn) oven_use;
+
+    this->entity.type = OVEN;
+    this->col = get_color4(-1, 000, 332, 442);
+    this->sprite = 2;
+    this->entity.xr = 3;
+    this->entity.yr = 2;
 }
 
-/* Opens the crafting menu on the oven recipe list; always succeeds. */
-char oven_use(Oven* oven, struct _Player* player, int attackDir){
-	crmenu_recipes = &ovenRecipes;
-	game_set_menu(mid_CRAFTING);
-	return 1;
+
+/* Opens the crafting menu on the oven recipe list; it always succeeds. */
+PUBLIC boolean oven_use(Oven* this, struct Player* player, int attackDir) {
+    (void) this;
+    (void) player;
+    (void) attackDir;
+
+    crmenu_recipes = &ovenRecipes;
+    game_set_menu(mid_CRAFTING);
+
+    return true;
 }

@@ -1,10 +1,13 @@
 /*
- * recipe.c - Recipe behavior (Java: Recipe).
+ * recipe.c - The crafting recipes
+ *            (Java: com.mojang.ld22.crafting.Recipe).
  */
 #include "recipe.h"
+
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "../entity/entityid.h"
 #include "../entity/furniture.h"
 #include "../entity/inventory.h"
@@ -15,136 +18,179 @@
 #include "../item/furniture_item.h"
 #include "../item/resourceitem.h"
 #include "../item/tool_item.h"
+#include "../log.h"
 
 
-/* Common setup: copies the result template and starts the cost list. */
-void recipe_create(Recipe* recipe, Item* result) {
-	recipe->resultTemplate = *result;
-	create_arraylist(&recipe->costs);
-	recipe->canCraft = 0;
+/* Constructor: copies the result template and starts the cost list.
+ * Java: Recipe(Item resultTemplate) */
+PUBLIC void recipe_create(Recipe* this, Item* result) {
+    this->resultTemplate = *result;
+    arraylist_create(&this->costs);
+    this->canCraft = false;
 }
 
 
-/* Builds a furniture recipe; a throwaway furniture entity provides
- * the icon/name template, the real one is created when crafting. */
-void furniturerecipe_create(Recipe* recipe, EntityId furniture) {
-	Item item;
-	Furniture* furn = entity_createFurniture(furniture);
+/*
+ * Constructor for furniture results (Java: FurnitureRecipe).
+ *
+ * A throwaway furniture entity provides the icon and the name template; the
+ * real one is instantiated at craft time.
+ */
+PUBLIC void furniturerecipe_create(Recipe* this, EntityId furniture) {
+    Item item;
+    Furniture* furn = entity_create_furniture(furniture);
 
-    if (furn == 0) {
-		printf("Tried creating unknown furniture typed entity(%d)\n", furniture);
-	}
+    if (furn == null) {
+        LOG_ERROR("tried creating unknown furniture typed entity(%d)", furniture);
+    }
 
-	furnitureitem_create(&item, furn);
-	recipe_create(recipe, &item);
-	recipe->id = rip_FURNITURE;
-	recipe->add.furniture.type = furniture;
+    furnitureitem_create(&item, furn);
+    recipe_create(this, &item);
+
+    this->id = rip_FURNITURE;
+    this->add.furniture.type = furniture;
 }
 
 
-/* Builds a recipe producing one unit of a resource. */
-void resourcerecipe_create(Recipe* recipe, Resource* resource) {
-	Item item;
-	resourceitem_create_cnt(&item, resource, 1);
-	recipe_create(recipe, &item);
-	recipe->add.resource.resource = resource;
-	recipe->id = rip_RESOURCE;
+/* Constructor for resource results (Java: ResourceRecipe): builds a recipe
+ * producing one unit of a resource. */
+PUBLIC void resourcerecipe_create(Recipe* this, struct Resource* resource) {
+    Item item;
+
+    resourceitem_create(&item, resource, 1);
+    recipe_create(this, &item);
+
+    this->add.resource.resource = resource;
+    this->id = rip_RESOURCE;
 }
 
 
-/* Builds a recipe producing a tool of the given type and tier. */
-void toolrecipe_create(Recipe* recipe, ToolType type, int level) {
-	Item item;
-	toolitem_create(&item, type, level);
-	recipe_create(recipe, &item);
-	recipe->add.tool.type = type;
-	recipe->add.tool.level = level;
-	recipe->id = rip_TOOL;
+/* Constructor for tool results (Java: ToolRecipe): builds a recipe
+ * producing a tool of the given type and tier. */
+PUBLIC void toolrecipe_create(Recipe* this, ToolType type, int level) {
+    Item item;
+
+    toolitem_create(&item, type, level);
+    recipe_create(this, &item);
+
+    this->add.tool.type = type;
+    this->add.tool.level = level;
+    this->id = rip_TOOL;
 }
 
 
-/* Appends a heap-allocated resource cost item to the cost list. */
-void recipe_addCost(Recipe* recipe, Resource* resource, int count) {
-	Item* item = malloc(sizeof(Item));
-	resourceitem_create_cnt(item, resource, count);
-	arraylist_push(&recipe->costs, item);
+/*
+ * Java: Recipe addCost(Resource resource, int count).
+ *
+ * Appends a heap-allocated resource cost item to the cost list and hands
+ * the recipe back, so that calls can be chained as they are in Java.
+ */
+PUBLIC Recipe* recipe_add_cost(Recipe* this, struct Resource* resource, int count) {
+    Item* item = new(Item);
+
+    resourceitem_create(item, resource, count);
+    this->costs.add(&this->costs, item);
+
+    return this;
 }
 
 
-/* Sets canCraft only when the inventory holds every cost in full. */
-void recipe_checkCanCraft(Recipe* recipe, Player* player) {
-	for (int i = 0; i < recipe->costs.size; ++i) {
-		Item* item = recipe->costs.elements[i];
-		if (item->id == RESOURCE) {
-			char has = inventory_hasResources(&player->inventory, item->add.resource.resource, item->add.resource.count);
-			if (!has) {
-				recipe->canCraft = 0;
-				return;
-			}
-		}
-	}
-	recipe->canCraft = 1;
+/*
+ * Java: Recipe.checkCanCraft(Player).
+ *
+ * Sets canCraft only when the inventory holds every cost in full.
+ */
+PUBLIC void recipe_check_can_craft(Recipe* this, struct Player* player) {
+    for (int i = 0; i < this->costs.size; ++i) {
+        Item* item = this->costs.elements[i];
+
+        if (item->id == RESOURCE) {
+            if (!inventory_has_resources(&player->inventory, item->add.resource.resource, item->add.resource.count)) {
+                this->canCraft = false;
+                return;
+            }
+        }
+    }
+
+    this->canCraft = true;
 }
 
 
-/* Draws icon and name; the name is dimmed while canCraft is false. */
-void recipe_renderInventory(Recipe* recipe, Screen* screen, int x, int y) {
-	int sprite = item_getSprite(&recipe->resultTemplate);
-	int color = item_getColor(&recipe->resultTemplate);
-	render_screen(screen, x, y, sprite, color, 0);
+/*
+ * Java: Recipe.renderInventory(Screen, int, int).
+ *
+ * Draws icon and name; the name is dimmed while canCraft is false.
+ */
+PUBLIC void recipe_render_inventory(Recipe* this, struct Screen* screen, int x, int y) {
+    int sprite = item_get_sprite(&this->resultTemplate);
+    int color = item_get_color(&this->resultTemplate);
 
-	char buffer[64];
-	item_getName(&recipe->resultTemplate, buffer);
+    screen->render(screen, x, y, sprite, color, 0);
 
-    int texColor = recipe->canCraft ? getColor4(-1, 555, 555, 555) : getColor4(-1, 222, 222, 222);
-	font_draw(buffer, strlen(buffer), screen, x + 8, y, texColor);
+    char buffer[64];
+
+    item_get_name(&this->resultTemplate, buffer);
+
+    int textColor = this->canCraft ? get_color4(-1, 555, 555, 555) : get_color4(-1, 222, 222, 222);
+
+    font_draw(buffer, strlen(buffer), screen, x + 8, y, textColor);
 }
 
 
-/* Produces the result: furniture recipes instantiate a fresh entity
- * at craft time, tools and resources reuse the template item. */
-void recipe_craft(Recipe* recipe, Player* player) {
-	Item item;
-	Furniture* furniture;
+/*
+ * Java: Recipe.craft(Player), which the original declares abstract and the
+ * three subclasses implement. The port switches on the id instead.
+ *
+ * Furniture recipes instantiate a fresh entity at craft time; tools and
+ * resources reuse the template item.
+ */
+PUBLIC void recipe_craft(Recipe* this, struct Player* player) {
+    Item item;
+    Furniture* furniture;
 
-	switch (recipe->id) {
-		case rip_FURNITURE:
-			furniture = entity_createFurniture(recipe->add.furniture.type);
+    switch (this->id) {
+        case rip_FURNITURE:
+            furniture = entity_create_furniture(this->add.furniture.type);
 
-			if (furniture == 0) {
-				printf("Tried creating unknown furniture typed entity(%d)\n", recipe->add.furniture.type);
-			}
+            if (furniture == null) {
+                LOG_ERROR("tried creating unknown furniture typed entity(%d)", this->add.furniture.type);
+            }
 
-			furnitureitem_create(&item, furniture);
-			inventory_addItemIntoSlot(&player->inventory, 0, &item);
-			return;
+            furnitureitem_create(&item, furniture);
+            inventory_add(&player->inventory, 0, &item);
+            return;
 
-		case rip_TOOL:
-			inventory_addItemIntoSlot(&player->inventory, 0, &recipe->resultTemplate);
-			return;
+        case rip_TOOL:
+            inventory_add(&player->inventory, 0, &this->resultTemplate);
+            return;
 
-		case rip_RESOURCE:
-			inventory_addItemIntoSlot(&player->inventory, 0, &recipe->resultTemplate);
-			return;
-	}
+        case rip_RESOURCE:
+            inventory_add(&player->inventory, 0, &this->resultTemplate);
+            return;
 
-	printf("Tried calling recipe_craft (%d)!\n", recipe->id);
+        default:
+            break;
+    }
+
+    LOG_ERROR("tried calling recipe_craft (%d)!", this->id);
 }
 
 
-/* Removes every resource cost from the player's inventory. */
-void recipe_deductCost(Recipe* recipe, Player* player) {
-	for (int i = 0; i < recipe->costs.size; ++i) {
-		Item* item = recipe->costs.elements[i];
-		if (item->id == RESOURCE) {
-			inventory_removeResource(&player->inventory, item->add.resource.resource, item->add.resource.count);
-		}
-	}
+/* Java: Recipe.deductCost(Player). Removes every resource cost from the
+ * player's inventory. */
+PUBLIC void recipe_deduct_cost(Recipe* this, struct Player* player) {
+    for (int i = 0; i < this->costs.size; ++i) {
+        Item* item = this->costs.elements[i];
+
+        if (item->id == RESOURCE) {
+            inventory_remove_resource(&player->inventory, item->add.resource.resource, item->add.resource.count);
+        }
+    }
 }
 
 
-void recipe_free(Recipe* recipe) {
-	item_free(&recipe->resultTemplate);
-	arraylist_remove_and_dealloc_each(&recipe->costs);
-	// TODO
+/* C-only: releases the result template and the cost items. */
+PUBLIC void recipe_free(Recipe* this) {
+    item_free(&this->resultTemplate);
+    this->costs.free_each(&this->costs);
 }

@@ -1,20 +1,32 @@
 /*
- * sand_tile.h - Sand tile: shores and beaches; shows footprints and
- *               can be dug with a shovel.
+ * sand_tile.h - The sand tile (Java: tile.SandTile).
+ *
+ * The shovel turns it into dirt and drops sand; it records footprints in
+ * the data byte when a mob steps on it.
  */
 #ifndef LEVEL_TILE_SAND_TILE_H_
-#define LEVEL_TILE_SAND_TILE_H_
+#define LEVEL_TILE_SAND_TILE_H_ 1
 
 #include "tile.h"
 
-struct _Item;
-struct _Player;
+#include "../level.h"
+#include "../../entity/entity.h"
+#include "../../entity/player.h"
+#include "../../item/item.h"
 
-void sandtile_init(TileID id);
-void sandtile_render(TileID id, Screen* screen, Level* level, int x, int y);
-/* Clears footprint data over time. */
-void sandtile_tick(TileID id, Level* level, int xt, int yt);
-/* Shovel interaction: digs sand resources out of the beach. */
-char sandtile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
+/* Constructor */
+PUBLIC void sandtile_init(Tile* this, TileID id);
+
+/* Java: SandTile.render(Screen, Level, int, int) */
+PUBLIC void sandtile_render(Tile* this, Screen* screen, Level* level, int x, int y);
+
+/* Java: SandTile.tick(Level, int, int) */
+PUBLIC void sandtile_tick(Tile* this, Level* level, int xt, int yt);
+
+/* Java: SandTile.steppedOn(Level, int, int, Entity) */
+PUBLIC void sandtile_stepped_on(Tile* this, Level* level, int xt, int yt, Entity* entity);
+
+/* Java: SandTile.interact(Level, int, int, Player, Item, int) */
+PUBLIC boolean sandtile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir);
 
 #endif /* LEVEL_TILE_SAND_TILE_H_ */

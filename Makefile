@@ -7,10 +7,12 @@ LD ?= ld
 SOURCE_DIR = source
 
 # Build options:
-#   make                   SDL2 (default)
-#   make SDL=1             SDL 1.2 (SDL1)
+#   make                   newest SDL installed, trying 3, then 2, then 1
+#   make SDL=3             SDL 3   (pinned: errors out if it is not there)
+#   make SDL=2             SDL 2   (pinned)
+#   make SDL=1             SDL 1.2 (pinned)
 #   make SDL=1 FB=1        SDL1 + prefer framebuffer (fbcon)   [Linux only]
-#   make FB=1              SDL2 + prefer framebuffer (KMSDRM)   [Linux only]
+#   make FB=1              SDL2/3 + prefer framebuffer (KMSDRM)[Linux only]
 #   make NO_AUDIO=1        compile without audio (silent build, for
 #                          embedded targets without sound support)
 #   make DEBUG=1           debug build (-g -O0), used by the VSCode launcher
@@ -36,10 +38,102 @@ SOURCE_DIR = source
 #   The generated files are committed to the repo, so python3 is only needed
 #   when the assets change (fallback for cross-compilation environments).
 
-SDL ?= 2
+# Which SDL to build against, or "auto" to take the newest one installed
+# (3 -> 2 -> 1). See the detection block below.
+SDL ?= auto
 FB ?= 0
 NO_AUDIO ?= 0
 PYTHON ?= python3
+
+# ---- Which SDL is installed? ---------------------------------------------
+# A package counts as installed when pkg-config can describe it or, where
+# pkg-config is absent (a bare MinGW toolchain, for instance), when the
+# compiler finds its main header on its own search path.
+SDL3_FOUND := $(shell pkg-config sdl3 >/dev/null 2>&1 && echo yes)
+ifeq ($(SDL3_FOUND),)
+    SDL3_FOUND := $(shell printf '#include <SDL3/SDL.h>\n' | $(CC) -E -x c - >/dev/null 2>&1 && echo yes)
+endif
+SDL2_FOUND := $(shell pkg-config sdl2 >/dev/null 2>&1 && echo yes)
+ifeq ($(SDL2_FOUND),)
+    SDL2_FOUND := $(shell printf '#include <SDL2/SDL.h>\n' | $(CC) -E -x c - >/dev/null 2>&1 && echo yes)
+endif
+SDL1_FOUND := $(shell sdl-config --version >/dev/null 2>&1 && echo yes)
+ifeq ($(SDL1_FOUND),)
+    SDL1_FOUND := $(shell printf '#include <SDL/SDL.h>\n' | $(CC) -E -x c - >/dev/null 2>&1 && echo yes)
+endif
+
+# Compiler and linker flags per version. pkg-config is preferred; the
+# fallbacks keep a build working where pkg-config is missing.
+SDL3_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
+SDL3_LIBS   := $(shell pkg-config --libs   sdl3 2>/dev/null || echo "-lSDL3")
+# The Windows build links with -static, which makes ld prefer SDL3's static
+# archive (libSDL3.a) over the import library. That archive still refers to
+# the libraries SDL3 was compiled against - libiconv above all - and only the
+# static closure lists them, so an ordinary `pkg-config --libs sdl3` leaves
+# the link with undefined references to libiconv_open and friends.
+SDL3_LIBS_STATIC := $(shell pkg-config --libs --static sdl3 2>/dev/null || echo "-lSDL3 -liconv")
+SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null)
+SDL2_LIBS   := $(shell pkg-config --libs   sdl2 2>/dev/null || echo "-lSDL2")
+SDL1_CFLAGS := $(shell sdl-config --cflags 2>/dev/null)
+SDL1_LIBS   := $(shell sdl-config --libs   2>/dev/null || echo "-lSDL")
+
+# ---- Pick the version ----------------------------------------------------
+# SDL=1|2|3 pins one version and never substitutes another, so a build can
+# not quietly come out against a library you did not ask for. Anything else
+# (SDL unset, SDL=auto, SDL=anything-else) walks 3 -> 2 -> 1.
+SDL_PIN := $(filter 1 2 3,$(strip $(SDL)))
+
+ifeq ($(SDL_PIN),)
+    ifeq ($(SDL3_FOUND),yes)
+        SDL_VER := 3
+    else
+        ifeq ($(SDL2_FOUND),yes)
+            SDL_VER := 2
+        else
+            ifeq ($(SDL1_FOUND),yes)
+                SDL_VER := 1
+            else
+                SDL_VER :=
+            endif
+        endif
+    endif
+else
+    SDL_VER := $(SDL_PIN)
+endif
+
+# A pinned version that is not installed is an error, not a surprise.
+ifneq ($(SDL_VER),)
+    ifeq ($(SDL_VER),3)
+        ifneq ($(SDL3_FOUND),yes)
+            $(error SDL=3 was requested but SDL3 was not found (install libsdl3-dev or mingw-w64-*-sdl3))
+        endif
+    endif
+    ifeq ($(SDL_VER),2)
+        ifneq ($(SDL2_FOUND),yes)
+            $(error SDL=2 was requested but SDL2 was not found (install libsdl2-dev or mingw-w64-*-SDL2))
+        endif
+    endif
+    ifeq ($(SDL_VER),1)
+        ifneq ($(SDL1_FOUND),yes)
+            $(error SDL=1 was requested but SDL 1.2 was not found (install libsdl1.2-dev or mingw-w64-*-SDL))
+        endif
+    endif
+endif
+
+# Nothing at all: explain the situation and stop.
+ifeq ($(SDL_VER),)
+    $(info )
+    $(info Minicraft builds against SDL 1.2, SDL2 or SDL3, and none of them is installed.)
+    $(info )
+    $(info   SDL3 found : $(if $(SDL3_FOUND),yes,no))
+    $(info   SDL2 found : $(if $(SDL2_FOUND),yes,no))
+    $(info   SDL1 found : $(if $(SDL1_FOUND),yes,no))
+    $(info )
+    $(info Debian/Ubuntu : sudo apt-get install libsdl3-dev)
+    $(info MSYS2/MinGW   : pacman -S $$MINGW_PACKAGE_PREFIX-sdl3)
+    $(info )
+    $(error no usable SDL found - install SDL3 (preferred), SDL2 or SDL 1.2 and try again)
+endif
 
 # -DLEVELGENTEST
 # -DTEST_SHOWPORTALPOS
@@ -52,7 +146,12 @@ ifeq ($(OS),Windows_NT)
     OUTPUT  = game.exe
     CFLAGS += -Wall -Wextra -O2 -static -static-libgcc
 
-    ifeq ($(SDL),1)
+    # Windows system libraries every SDL backend needs.
+    WIN_SYS_LIBS := -lkernel32 -luser32 -lgdi32 -lwinmm -limm32 \
+                    -lole32 -loleaut32 -lversion -luuid -ladvapi32 \
+                    -lsetupapi -lshell32
+
+    ifeq ($(SDL_VER),1)
         # SDL 1.2 (SDL1) on Windows (MSYS2 MINGW32)
         # Package: mingw-w64-i686-SDL
         #
@@ -64,38 +163,44 @@ ifeq ($(OS),Windows_NT)
         # You MUST add -ldxguid -lddraw right after -lSDL.
         CFLAGS += -DUSE_SDL1
         LDFLAGS += -lmingw32 -lSDLmain -lSDL -ldxguid -lddraw -ldinput8 -lm \
-                   -lkernel32 -luser32 -lgdi32 -lwinmm -limm32 \
-                   -lole32 -loleaut32 -lversion -luuid -ladvapi32 \
-                   -lsetupapi -lshell32
-    else
-        # SDL2 (default)
+                   $(WIN_SYS_LIBS)
+    else ifeq ($(SDL_VER),2)
+        # SDL2
         CFLAGS += -DUSE_SDL2
-        LDFLAGS += -lmingw32 -lSDL2main -lSDL2 -lm \
-                   -lkernel32 -luser32 -lgdi32 -lwinmm -limm32 \
-                   -lole32 -loleaut32 -lversion -luuid -ladvapi32 \
-                   -lsetupapi -lshell32 -ldinput8
+        LDFLAGS += -lmingw32 -lSDL2main -lSDL2 -lm -ldinput8 $(WIN_SYS_LIBS)
+    else
+        # SDL3. There is no SDL3main: SDL 3 dropped SDLmain altogether, so a
+        # plain main() links as usual.
+        #
+        # SDL3_LIBS_STATIC rather than SDL3_LIBS: -static makes this a static
+        # link, so SDL3's own dependencies (libiconv) have to be named here
+        # and after -lSDL3. See the definition above.
+        CFLAGS += -DUSE_SDL3
+        LDFLAGS += -lmingw32 $(SDL3_LIBS_STATIC) -lm -ldinput8 $(WIN_SYS_LIBS)
     endif
 
 else
     # ===================== Linux / Unix =====================
     OUTPUT  = game
 
-    ifeq ($(SDL),1)
+    ifeq ($(SDL_VER),1)
         # SDL 1.2
-        SDL_CFLAGS := $(shell sdl-config --cflags 2>/dev/null || echo "")
-        SDL_LIBS   := $(shell sdl-config --libs 2>/dev/null || echo "-lSDL")
-        CFLAGS += -DUSE_SDL1 $(SDL_CFLAGS)
-        LDFLAGS += $(SDL_LIBS) -lm
+        CFLAGS += -DUSE_SDL1 $(SDL1_CFLAGS)
+        LDFLAGS += $(SDL1_LIBS) -lm
+    else ifeq ($(SDL_VER),2)
+        # SDL2
+        CFLAGS += -DUSE_SDL2 $(SDL2_CFLAGS)
+        LDFLAGS += $(SDL2_LIBS) -lm
     else
-        # SDL 2 (default)
-        CFLAGS += -DUSE_SDL2
-        LDFLAGS += -lSDL2 -lm
+        # SDL3
+        CFLAGS += -DUSE_SDL3 $(SDL3_CFLAGS)
+        LDFLAGS += $(SDL3_LIBS) -lm
     endif
 
     # Ensure one of the defines is always present (Linux)
     ifneq ($(filter -DUSE_SDL%,$(CFLAGS)),)
     else
-        CFLAGS += -DUSE_SDL2
+        CFLAGS += -DUSE_SDL3
     endif
 
     # Framebuffer hints (Linux only)
@@ -117,6 +222,32 @@ ifeq ($(DEBUG),1)
 else
     CFLAGS += -Wall -Wextra -O2
 endif
+
+# ---- Avisos -------------------------------------------------------------
+# Conjunto "nivel 1": -Wall -Wextra mas los flags que no cuestan trabajo y
+# cazan bugs reales (macros sin definir, VLAs, desreferencias de NULL
+# evidentes, saltos que se saltan una inicializacion, formatos dudosos...).
+WARNINGS ?= -Wall -Wextra -Wundef -Wvla -Wnull-dereference \
+            -Wjump-misses-init -Wunused-macros -Wformat=2
+CFLAGS += $(WARNINGS)
+
+# Regla de cero warnings: -Werror activo por defecto.
+# `make WERROR=0` lo desactiva para toolchains exoticos / GCC muy viejos.
+WERROR ?= 1
+ifeq ($(WERROR),1)
+    CFLAGS += -Werror
+endif
+
+# ---- Logging (source/log.h) ---------------------------------------------
+#   LOG=0 silencio | 1 errores | 2 +avisos | 3 +info | 4 +traza
+#   Release arranca en 2 y DEBUG=1 en 4 (todo visible).
+ifeq ($(DEBUG),1)
+    LOG ?= 4
+    CFLAGS += -DDEBUG_BUILD
+else
+    LOG ?= 2
+endif
+CFLAGS += -DLOG_LEVEL=$(LOG)
 
 # C Source files
 SOURCES = $(wildcard 				  \
@@ -330,7 +461,7 @@ define VSCODE_TASKS
             "args": [],
             "group": { "kind": "build", "isDefault": true },
             "problemMatcher": [ "$$gcc" ],
-            "detail": "Default build (SDL$(SDL))"
+            "detail": "Default build (SDL$(SDL_VER))"
         },
         {
             "label": "build-debug",
@@ -340,6 +471,22 @@ define VSCODE_TASKS
             "group": "build",
             "problemMatcher": [ "$$gcc" ],
             "detail": "Debug build (-g -O0) - used by F5"
+        },
+        {
+            "label": "build-sdl3",
+            "type": "shell",
+            "command": "$(subst \\,/,$(MAKE))",
+            "args": [ "SDL=3" ],
+            "group": "build",
+            "detail": "SDL 3 build (pinned)"
+        },
+        {
+            "label": "build-sdl2",
+            "type": "shell",
+            "command": "$(subst \\,/,$(MAKE))",
+            "args": [ "SDL=2" ],
+            "group": "build",
+            "detail": "SDL 2 build (pinned)"
         },
         {
             "label": "build-sdl1",
@@ -426,6 +573,41 @@ define VSCODE_LAUNCH
 }
 endef
 
+define VSCODE_SETTINGS
+{
+    /*
+     * Workspace settings written by `make vsconfig`.
+     * Regenerated on every run: edit the Makefile, not this file.
+     */
+    "C_Cpp.default.compilerPath": "$(VSC_CC)",
+    "C_Cpp.default.cStandard": "gnu11",
+    "C_Cpp.default.intelliSenseMode": "$(VSC_MODE)",
+
+    /*
+     * Squiggles stay ON. The one false positive this workspace used to
+     * show - "duplicate association type (\"int\") in _Generic selection"
+     * on the game_set_menu() overload in game.h - comes from the
+     * extension's front-end treating the menu_id enum and int as the same
+     * type, something neither GCC nor Clang does with -Wall -Wextra.
+     *
+     * It is fixed at the source: game.h hides the redundant `int`
+     * association behind #ifdef __INTELLISENSE__, so the front-end sees a
+     * selection with no duplicate types while every real compiler keeps
+     * the branch. Nothing is being masked here, so there is no reason to
+     * reach for "C_Cpp.errorSquiggles": "Disabled", which would throw
+     * away every genuine diagnostic along with it.
+     */
+    "C_Cpp.errorSquiggles": "enabledIfIncludesResolve",
+    "C_Cpp.intelliSenseEngine": "default",
+
+    /* Headers here are C, not C++. */
+    "files.associations": {
+        "*.h": "c"
+    },
+    "C_Cpp.autoAddFileAssociations": false
+}
+endef
+
 .PHONY: vsconfig
 vsconfig:
 ifneq ($(firstword $(sort 4.0 $(MAKE_VERSION))),4.0)
@@ -434,7 +616,7 @@ else
 ifneq ($(VSC_MKDIR_ERR),)
 	@echo "vsconfig: ERROR: cannot create $(VSCODE_DIR)/: $(VSC_MKDIR_ERR)" && exit 1
 endif
-	@$(file > $(VSCODE_DIR)/c_cpp_properties.json,$(VSCODE_CPROPS))$(file > $(VSCODE_DIR)/tasks.json,$(VSCODE_TASKS))$(file > $(VSCODE_DIR)/launch.json,$(VSCODE_LAUNCH))echo "vsconfig: generated $(VSCODE_DIR)/c_cpp_properties.json, tasks.json, launch.json"
+	@$(file > $(VSCODE_DIR)/c_cpp_properties.json,$(VSCODE_CPROPS))$(file > $(VSCODE_DIR)/tasks.json,$(VSCODE_TASKS))$(file > $(VSCODE_DIR)/launch.json,$(VSCODE_LAUNCH))$(file > $(VSCODE_DIR)/settings.json,$(VSCODE_SETTINGS))echo "vsconfig: generated $(VSCODE_DIR)/c_cpp_properties.json, tasks.json, launch.json, settings.json"
 	@echo "vsconfig: compiler         = $(VSC_CC)  [$(VSC_TRIPLE)]"
 	@echo "vsconfig: intelliSenseMode = $(VSC_MODE)"
 	@echo "vsconfig: defines          = $(VSC_DEFINES)"

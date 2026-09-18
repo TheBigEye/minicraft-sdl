@@ -1,49 +1,85 @@
 /*
- * screen.h - Software rendering surface of the game.
+ * screen.h - The Screen class (Java: com.mojang.ld22.gfx.Screen).
  *
- * A Screen is a w*h buffer of palette indices (one byte per pixel).
- * Everything (tiles, sprites, text) is blitted into it from the
- * spritesheet; the finished buffer is later expanded to 32-bit color
- * and scaled up when presented to the SDL window.
+ * The game's software drawing surface: a buffer of w*h palette indices, one
+ * byte per pixel. Everything (tiles, mobs, items and text) is blitted here
+ * from the spritesheet; the finished buffer is expanded to 32-bit color and
+ * scaled when it is presented in the SDL window.
+ *
+ * The struct stays visible in the header because the game holds two screens
+ * by value (game_screen and game_lightScreen), not through pointers.
+ *
+ * Methods, as in the original:
+ *
+ *     screen->render(screen, xp, yp, tile, colors, bits);
+ *     screen->clear(screen, color);
  */
 #ifndef GFX_SCREEN_H_
 #define GFX_SCREEN_H_
 
 #include "spritesheet.h"
+#include "../utils/javalang.h"
 
-/* Flag bit for render_screen(): flip the sprite horizontally. */
-extern const int BIT_MIRROR_X;
-/* Flag bit for render_screen(): flip the sprite vertically. */
-extern const int BIT_MIRROR_Y;
-/* 4x4 ordered-dither threshold matrix used by the light overlay. */
-extern const int dither[];
+/* Mirror flags accepted by the `bits` argument of render(). */
+#define BIT_MIRROR_X 0x01
+#define BIT_MIRROR_Y 0x02
 
-typedef struct _Screen{
-	int xOffset;   /* camera shift applied to every blit (pixels) */
-	int yOffset;
+/*
+ * The 4x4 Bayer threshold matrix used to dither darkness. In Java this was
+ * a static field of Screen.
+ */
+extern const int dither[16];
 
-	int w;
-	int h;
-	unsigned char* pixels;     /* palette-index framebuffer, w*h bytes */
-	int pixelsSize;            /* == w*h, cached for the fill loops */
+typedef struct Screen Screen;
 
-	const SpriteSheet* sheet;  /* sprite source used by render_screen() */
-} Screen;
+/* Signatures of the Screen methods. */
+typedef void (*screen_render_fn)      (Screen* this, int xp, int yp, int tile, int colors, int bits);
+typedef void (*screen_clear_fn)       (Screen* this, int color);
+typedef void (*screen_set_offset_fn)  (Screen* this, int x, int y);
+typedef void (*screen_overlay_fn)     (Screen* this, Screen* other, int xa, int ya);
+typedef void (*screen_render_light_fn)(Screen* this, int x, int y, int r);
+typedef void (*screen_free_fn)        (Screen* this);
 
+struct Screen {
+    /* --- methods, installed by screen_create() --- */
 
-/* Allocates the pixel buffer and attaches the spritesheet. */
-void create_screen(Screen* screen, int w, int h, const SpriteSheet* sheet);
-/* Fills the whole buffer with one palette index. */
-void clear_screen(Screen* screen, int color);
-/* Blits an 8x8 sheet tile at (xp, yp) with packed colors and mirror bits. */
-void render_screen(Screen* screen, int xp, int yp, int tile, int colors, int bits);
-/* Moves the camera: all subsequent blits are shifted by (-x, -y). */
-void screen_set_offset(Screen* screen, int x, int y);
-/* Dithers the light-map screen onto this screen (darkness overlay). */
-void screen_overlay(Screen* screen, Screen* screen2, int xa, int ya);
-/* Adds a radial light of radius r at (x, y) to a light-map screen. */
-void screen_render_light(Screen* screen, int x, int y, int r);
-/* Frees the pixel buffer. */
-void delete_screen(Screen* screen);
+    /* Blits one 8x8 sprite. Java: render(int, int, int, int, int) */
+    screen_render_fn render;
+    /* Fills the whole buffer with one color. Java: clear(int) */
+    screen_clear_fn clear;
+    /* Moves the camera: every blit is shifted by (-x, -y). Java: setOffset */
+    screen_set_offset_fn set_offset;
+    /* Applies the light map on top, with dithering. Java: overlay */
+    screen_overlay_fn overlay;
+    /* Adds a circular light to the light map. Java: renderLight */
+    screen_render_light_fn render_light;
+    /* C destructor: frees the pixel buffer. */
+    screen_free_fn free;
 
-#endif
+    /* --- data --- */
+
+    /* Camera offset subtracted from every blit. */
+    int xOffset;
+    int yOffset;
+    int w;
+    int h;
+    /* Palette indices, w*h bytes. */
+    unsigned char* pixels;
+    /* Cached w*h, so the loops do not recompute it. */
+    int pixelsSize;
+    /* The spritesheet render() blits from. */
+    const SpriteSheet* sheet;
+};
+
+/* Constructor: allocates the buffer and binds the sheet. Java: Screen(w, h, sheet) */
+PUBLIC void screen_create(Screen* this, int w, int h, const SpriteSheet* sheet);
+
+/* The method implementations. */
+PUBLIC void screen_render(Screen* this, int xp, int yp, int tile, int colors, int bits);
+PUBLIC void screen_clear(Screen* this, int color);
+PUBLIC void screen_set_offset(Screen* this, int x, int y);
+PUBLIC void screen_overlay(Screen* this, Screen* other, int xa, int ya);
+PUBLIC void screen_render_light(Screen* this, int x, int y, int r);
+PUBLIC void screen_free(Screen* this);
+
+#endif /* GFX_SCREEN_H_ */

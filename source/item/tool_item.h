@@ -1,29 +1,52 @@
 /*
- * tool_item.h - Tool item (Java: ToolItem): shovel, hoe, sword,
- *               pickaxe and axe in five material tiers.
+ * tool_item.h - The tool item (Java: com.mojang.ld22.item.ToolItem):
+ *               shovel, hoe, sword, pickaxe and axe, in five material
+ *               tiers.
  */
 #ifndef TOOL_ITEM_H
-#define TOOL_ITEM_H
+#define TOOL_ITEM_H 1
 
-extern const int LEVEL_COLORS[]; /* Sprite color per material tier. */
-extern const char* LEVEL_NAMES[]; /* Display name per material tier. */
+#include "../utils/javalang.h"
+#include "item.h"
+#include "tooltype.h"
+
+/* Sprite color per material tier.
+ * Java: `private static final int[] LEVEL_COLORS` */
+extern const int LEVEL_COLORS[];
+/* Display name per material tier.
+ * Java: `private static final String[] LEVEL_NAMES` */
+extern const char* LEVEL_NAMES[];
+/* How many material tiers there are. Java: `public static final int MAX_LEVEL` */
 extern const int MAX_LEVEL;
 
-struct _Item;
-struct _Screen;
-struct _Entity;
-enum _ToolType;
+/* Constructor: Java: ToolItem(ToolType type, int level) */
+PUBLIC void toolitem_create(Item* this, ToolType type, int level);
 
-void toolitem_create(struct _Item* item, enum _ToolType type, int level);
-int toolitem_getColor(struct _Item* item);
-int toolitem_getSprite(struct _Item* item);
-void toolitem_renderIcon(struct _Item* item, struct _Screen* screen, int x, int y);
-void toolitem_renderInventory(struct _Item* item, struct _Screen* screen, int x, int y);
-void toolitem_getName(struct _Item* item, char* buf);
-/* Random attack damage bonus depending on tool type and level. */
-int toolitem_getAttackDamageBonus(struct _Item* item, struct _Entity* e);
-/* Tools only stack with identical type and level. */
-char toolitem_matches(struct _Item* item, struct _Item* item2);
+/* Java: ToolItem.getColor() */
+PUBLIC int toolitem_get_color(Item* this);
 
+/* Java: ToolItem.getSprite() */
+PUBLIC int toolitem_get_sprite(Item* this);
 
-#endif // TOOL_ITEM_H
+/* Java: ToolItem.renderIcon(Screen, int, int) */
+PUBLIC void toolitem_render_icon(Item* this, Screen* screen, int x, int y);
+
+/* Java: ToolItem.renderInventory(Screen, int, int) */
+PUBLIC void toolitem_render_inventory(Item* this, Screen* screen, int x, int y);
+
+/*
+ * Composes "Material Type", for example "Iron Pick".
+ * Java: ToolItem.getName(), which returns a String; the port writes into
+ * `buf` instead, so that no caller has to free it.
+ */
+PUBLIC void toolitem_get_name(Item* this, char* buf);
+
+/* Random attack damage bonus depending on tool type and level.
+ * Java: ToolItem.getAttackDamageBonus(Entity) */
+PUBLIC int toolitem_get_attack_damage_bonus(Item* this, Entity* e);
+
+/* Tools only stack with an identical type and level.
+ * Java: ToolItem.matches(Item) */
+PUBLIC boolean toolitem_matches(Item* this, Item* item);
+
+#endif /* TOOL_ITEM_H */

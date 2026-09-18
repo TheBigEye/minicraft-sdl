@@ -1,22 +1,20 @@
 /*
- * stairs_tile.h - Stairs tile: the exit between level depths; one
- *                 variant leads up, the other leads down.
+ * stairs_tile.h - The stairs tile (Java: tile.StairsTile).
+ *
+ * The `leadsUp` flag decides whether it leads up or down a level, and so
+ * which set of sprites it uses.
  */
 #ifndef LEVEL_TILE_STAIRS_TILE_H_
-#define LEVEL_TILE_STAIRS_TILE_H_
+#define LEVEL_TILE_STAIRS_TILE_H_ 1
 
 #include "tile.h"
+
 #include "../level.h"
-#include "../../gfx/screen.h"
 
-enum tileid_;
-/* Extra per-tile state for stairs. */
-typedef struct{
-	char leadsUp; /* Selects the up or down staircase sprite. */
-} add_stairs_;
+/* Constructor. `leadsUp`: true for the way up, false for the way down. */
+PUBLIC void stairstile_init(Tile* this, TileID id, boolean leadsUp);
 
-/* Configures whether this staircase leads up or down. */
-void stairstile_init(enum tileid_ id, char leadsUp);
-void stairstile_render(enum tileid_ id, Screen* screen, Level* level, int x, int y);
+/* Java: StairsTile.render(Screen, Level, int, int) */
+PUBLIC void stairstile_render(Tile* this, Screen* screen, Level* level, int x, int y);
 
 #endif /* LEVEL_TILE_STAIRS_TILE_H_ */

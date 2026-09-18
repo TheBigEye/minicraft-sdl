@@ -1,5 +1,6 @@
 /*
- * sound.h - C port of com.mojang.ld22.sound.Sound (Minicraft, LD22)
+ * sound.h - The sound effects
+ *           (Java: com.mojang.ld22.sound.Sound).
  *
  * Original Java:
  *   public static final Sound playerHurt  = new Sound("/playerhurt.wav");
@@ -13,48 +14,67 @@
  * The WAV samples are embedded in the binary at compile time by
  * scripts/sound2c.py (see source/extern/sound_data.c).
  *
- * Playback uses a tiny software mixer on top of the SDL audio callback
- * (works with both SDL 1.2 and SDL2, no SDL_mixer dependency, embedded
- * friendly). Define NO_AUDIO=1 at build time to compile audio out entirely.
+ * Playback uses a tiny software mixer on top of the SDL audio callback: it
+ * works with both SDL 1.2 and SDL2 and needs no SDL_mixer, which keeps it
+ * friendly to embedded targets. Define NO_AUDIO=1 to compile audio out.
  */
-
 #ifndef SOUND_SOUND_H_
-#define SOUND_SOUND_H_
+#define SOUND_SOUND_H_ 1
 
 #include <stdint.h>
 
-typedef enum {
-	SND_PLAYERHURT = 0,   /* Sound.playerHurt  → playerhurt.wav  */
-	SND_PLAYERDEATH,      /* Sound.playerDeath → death.wav       */
-	SND_MONSTERHURT,      /* Sound.monsterHurt → monsterhurt.wav */
-	SND_TEST,             /* Sound.test        → test.wav        */
-	SND_PICKUP,           /* Sound.pickup      → pickup.wav      */
-	SND_BOSSDEATH,        /* Sound.bossdeath   → bossdeath.wav   */
-	SND_CRAFT,            /* Sound.craft       → craft.wav       */
-	SOUND_COUNT
+#include "../utils/javalang.h"
+
+/*
+ * Which sound is which. C-only: Java holds one Sound instance per constant,
+ * so it needs no ids.
+ */
+typedef enum SoundId {
+    /* Sound.playerHurt  -> playerhurt.wav  */
+    SND_PLAYERHURT = 0,
+    /* Sound.playerDeath -> death.wav       */
+    SND_PLAYERDEATH,
+    /* Sound.monsterHurt -> monsterhurt.wav */
+    SND_MONSTERHURT,
+    /* Sound.test        -> test.wav        */
+    SND_TEST,
+    /* Sound.pickup      -> pickup.wav      */
+    SND_PICKUP,
+    /* Sound.bossdeath   -> bossdeath.wav   */
+    SND_BOSSDEATH,
+    /* Sound.craft       -> craft.wav       */
+    SND_CRAFT,
+    SOUND_COUNT
 } SoundId;
 
-/* One packed sound effect (defined by generated sound_data.c) */
-typedef struct {
-	const int16_t* samples;   /* mono 16-bit signed PCM           */
-	unsigned int length;      /* number of samples                */
-	unsigned int rate;        /* samples per second (44100)       */
-} SoundData;
+/* One packed sound effect; the table is generated into sound_data.c. */
+typedef struct SoundData SoundData;
+
+struct SoundData {
+    /* Mono 16-bit signed PCM. */
+    const int16_t* samples;
+    /* Number of samples. */
+    unsigned int length;
+    /* Samples per second (44100). */
+    unsigned int rate;
+};
 
 extern const SoundData sound_data_table[SOUND_COUNT];
 
 /*
- * Initialize the audio subsystem and open the mixing device.
- * Never fatal: returns 1 if audio is active, 0 if unavailable
- * (headless / embedded without sound / NO_AUDIO build) and the
- * game keeps running silently.
+ * Initializes the audio subsystem and opens the mixing device.
+ *
+ * Never fatal: it returns true when audio is active and false when it is not
+ * (headless or embedded without sound, or a NO_AUDIO build), and the game
+ * keeps running silently either way.
  */
-int sound_init(void);
+PUBLIC boolean sound_init(void);
 
-/* Close the audio device and quit the audio subsystem. */
-void sound_quit(void);
+/* Closes the audio device and quits the audio subsystem. */
+PUBLIC void sound_quit(void);
 
-/* Play a sound (like Java's Sound.play()). Safe to call when audio is off. */
-void sound_play(SoundId id);
+/* Plays a sound, as Java's Sound.play() does. Safe to call when audio is
+ * off. */
+PUBLIC void sound_play(SoundId id);
 
 #endif /* SOUND_SOUND_H_ */

@@ -1,373 +1,239 @@
 /*
- * tile.c - Tile dispatch table (Java: Tile static registry).
+ * tile.c - The base Tile class and the registry of the 23 tile types
+ *          (Java: com.mojang.ld22.level.tile.Tile).
  *
- * Wires every tile id to its behavior functions and forwards the
- * generic tile_* calls to the per-tile implementations.
+ * `tile_storage` holds the instances, which in Java each came out of a
+ * `new`, and the static `tiles` array indexes them by id: the constructor
+ * tile_init() registers the object in tiles[id], exactly as `tiles[id] =
+ * this` did in Java's Tile.
+ *
+ * The methods here are the body of the base class: the behaviour any tile
+ * that does not override them inherits.
  */
 #include "tile.h"
-#include "grass_tile.h"
-#include "water_tile.h"
-#include "flower_tile.h"
-#include "tree_tile.h"
-
-#include "sand_tile.h"
-#include "cactus_tile.h"
-#include "hole_tile.h"
-#include "sapling_tile.h"
-
-#include "lava_tile.h"
-#include "stairs_tile.h"
-#include "hard_rock_tile.h"
-#include "ore_tile.h"
-#include "wheat_tile.h"
-#include "rock_tile.h"
-#include "dirt_tile.h"
-#include "cloud_cactus_tile.h"
-#include "cloud_tile.h"
-#include "farmland.h"
-
-#include "../../gfx/screen.h"
-#include "../../item/resource/resource.h"
-#include "../level.h"
-
-#include "../../entity/entity.h"
-#include "../../entity/mob.h"
-#include "../../entity/player.h"
 
 #include <string.h>
 
-Tile tiles[256];
-int tile_tickCount = 0;
+#include "cactus_tile.h"
+#include "cloud_cactus_tile.h"
+#include "cloud_tile.h"
+#include "dirt_tile.h"
+#include "farmland.h"
+#include "flower_tile.h"
+#include "grass_tile.h"
+#include "hard_rock_tile.h"
+#include "hole_tile.h"
+#include "infinite_fall_tile.h"
+#include "lava_tile.h"
+#include "ore_tile.h"
+#include "rock_tile.h"
+#include "sand_tile.h"
+#include "sapling_tile.h"
+#include "stairs_tile.h"
+#include "tree_tile.h"
+#include "water_tile.h"
+#include "wheat_tile.h"
 
-/* Registers all tile types: ids, connection flags and behaviors.
- * Called once during game initialization. */
-void init_tiles(){
+#include "../../item/resource/resource.h"
+#include "../../log.h"
+#include "../../utils/utils.h"
 
-	for(int i = 0; i < 256; ++i){
-		memset(tiles + i, 0, sizeof(Tile));
-	}
-
-	grasstile_init(GRASS);
-	tile_init(ROCK);
-	watertile_init(WATER);
-	flowertile_init(FLOWER);
-	treetile_init(TREE);
-	tile_init(DIRT);
-	sandtile_init(SAND);
-	cactustile_init(CACTUS);
-	holetile_init(HOLE);
-	saplingtile_init(TREE_SAPLING, GRASS, TREE);
-	saplingtile_init(CACTUS_SAPLING, SAND, CACTUS);
-	tile_init(FARMLAND);
-	wheat_tile_init(WHEAT);
-	lavatile_init(LAVA);
-	stairstile_init(STAIRS_DOWN, 0);
-	stairstile_init(STAIRS_UP, 1);
-	tile_init(INFINITE_FALL);
-	tile_init(CLOUD);
-	tile_init(HARD_ROCK);
-	oretile_init(IRON_ORE, &ironOre);
-	oretile_init(GOLD_ORE, &goldOre);
-	oretile_init(GEM_ORE, &gem);
-	tile_init(CLOUD_CACTUS);
-}
-
-/* Clears one tiles[] entry before its own init customizes it. */
-void tile_init(TileID id){
-	Tile* t = tiles + id;
-	t->connectsToGrass = t->connectsToLava = t->connectsToSand = t->connectsToWater = 0;
-	t->id = id;
-}
-
-/* Draws the tile at (x, y) by dispatching to its render routine. */
-void tile_render(TileID id, Screen* screen, Level* level, int x, int y){
-	switch(id){
-		case CACTUS:
-			cactustile_render(id, screen, level, x, y);
-			break;
-		case CLOUD_CACTUS:
-			cloudcactustile_render(id, screen, level, x, y);
-			break;
-		case CLOUD:
-			cloudtile_render(id, screen, level, x, y);
-			break;
-		case DIRT:
-			dirttile_render(id, screen, level, x, y);
-			break;
-		case FARMLAND:
-			farmlandtile_render(id, screen, level, x, y);
-			break;
-		case FLOWER:
-			flowertile_render(id, screen, level, x, y);
-			break;
-		case GRASS:
-			grasstile_render(id, screen, level, x, y);
-			break;
-		case HARD_ROCK:
-			hardrocktile_render(id, screen, level, x, y);
-			break;
-		case HOLE:
-			holetile_render(id, screen, level, x, y);
-			break;
-		case LAVA:
-			lavatile_render(id, screen, level, x, y);
-			break;
-		case IRON_ORE:
-		case GOLD_ORE:
-		case GEM_ORE:
-			oretile_render(id, screen, level, x, y);
-			break;
-		case ROCK:
-			rocktile_render(id, screen, level, x, y);
-			break;
-		case SAND:
-			sandtile_render(id, screen, level, x, y);
-			break;
-		case TREE_SAPLING:
-		case CACTUS_SAPLING:
-			saplingtile_render(id, screen, level, x, y);
-			break;
-		case STAIRS_UP:
-		case STAIRS_DOWN:
-			stairstile_render(id, screen, level, x, y);
-			break;
-		//case STONE: XXX unused?
-		//
-		//	break;
-		case TREE:
-			treetile_render(id, screen, level, x, y);
-			break;
-		case WATER:
-			watertile_render(id, screen, level, x, y);
-			break;
-		case WHEAT:
-			wheattile_render(id, screen, level, x, y);
-			break;
-		default:
-		case INFINITE_FALL:
-			//render nothing
-			break;
-	}
-}
+/* Global counter pacing the occasional ticks. Java: the static Tile.tickCount */
+int tile_tick_count = 0;
 
 /*
- * Collision query (Java: Tile.mayPass): solids block everyone,
- * liquids only let swimmers through, holes and falls block walkers,
- * and so on per tile type.
+ * Storage for the Tile instances. There are at most 256 of them, one per
+ * id, which is all a level's map byte can hold.
  */
-char tile_mayPass(TileID id, Level* level, int x, int y, Entity* e){
+STATIC Tile tile_storage[256];
 
-    // -DGODMODE
-    #ifdef GODMODE
-	    if (e->type == PLAYER) {
-            return 1;
-        }
-    #endif
+/* The static registry, indexed by id. Java: public static Tile[] tiles */
+Tile* tiles[256];
 
-	switch (id) {
-		case CACTUS:
-		case HARD_ROCK:
-		case GEM_ORE:
-		case GOLD_ORE:
-		case IRON_ORE:
-		case ROCK:
-		// XXX unused case STONE:
-		case TREE:
-			return 0;
-		case CLOUD_CACTUS:
-		case INFINITE_FALL:
-			if (e->type == AIRWIZARD) {
-                return 1;
-            }
-			return 0;
-		case HOLE:
-		case LAVA:
-		case WATER:
-			return e->vt->canSwim(e);
-		case CLOUD:
-		default:
-			return 1;
-	}
+
+/* ------------------------------------------------------------------ */
+/* Body of the base Tile class                                        */
+/* ------------------------------------------------------------------ */
+
+/* Base render(): a bare tile draws nothing. */
+PUBLIC void tile_render(Tile* this, Screen* screen, struct Level* level, int x, int y) {
+    (void) this;
+    (void) screen;
+    (void) level;
+    (void) x;
+    (void) y;
 }
 
 
-/* Light emitted by the tile itself; only lava glows. */
-int tile_getLightRadius(TileID id, Level* level, int x, int y){
-	switch(id){
-		case LAVA:
-			return 6;
-		default:
-			return 0;
-	}
+/* Base mayPass(): by default you can cross it. */
+PUBLIC boolean tile_may_pass(Tile* this, struct Level* level, int x, int y, struct Entity* e) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
+    (void) e;
+
+    return true;
 }
 
 
-/* Applies attack/mining damage to the tile; each type decides what
- * breaks, what drops and which tool level is required. */
-void tile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
-	switch(id){
-		case CACTUS:
-			cactus_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case CLOUD_CACTUS:
-			cloudcactustile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case FLOWER:
-			flowertile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case HARD_ROCK:
-			hardrocktile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case GEM_ORE:
-		case GOLD_ORE:
-		case IRON_ORE:
-			oretile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case ROCK:
-			rocktile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case CACTUS_SAPLING:
-		case TREE_SAPLING:
-			saplingtile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case TREE:
-			treetile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		case WHEAT:
-			wheattile_hurt(id, level, x, y, source, dmg, attackDir);
-			break;
-		default:
-			break;
-	}
+/* Base getLightRadius(): by default it gives off no light. */
+PUBLIC int tile_get_light_radius(Tile* this, struct Level* level, int x, int y) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
 
-	//TODO
+    return 0;
 }
 
-/* Notifies the tile of an entity collision (cactus stings, ...). */
-void tile_bumpedInto(TileID id, Level* level, int x, int y, Entity* entity){
-	switch(id){
-		case CACTUS:
-			entity->vt->hurtTile(entity, id, x, y, 1);
-			break;
-		case CLOUD_CACTUS:
-			if(entity->type == AIRWIZARD) break;
-			entity->vt->hurtTile(entity, id, x, y, 3);
-			break;
-		case GEM_ORE:
-		case GOLD_ORE:
-		case IRON_ORE:
-			entity->vt->hurtTile(entity, id, x, y, 3);
-			break;
-	}
+
+/* Base hurt(): by default damage does not affect it. */
+PUBLIC void tile_hurt(Tile* this, struct Level* level, int x, int y, struct Mob* source, int dmg, int attackDir) {
+    (void) this;
+    (void) level;
+    (void) x;
+    (void) y;
+    (void) source;
+    (void) dmg;
+    (void) attackDir;
 }
 
-/* Occasional per-tile update (crop growth, grass spread, sapling
- * growing); gated by a random chance per type. */
-void tile_tick(TileID id, Level* level, int xt, int yt) {
-	switch(id){
-		case CACTUS:
-			cactustile_tick(id, level, xt, yt);
-			break;
-		case FARMLAND:
-			farmland_tick(id, level, xt, yt);
-			break;
-		case GRASS:
-			grasstile_tick(id, level, xt, yt);
-			break;
-		case HARD_ROCK:
-			hardrocktile_tick(id, level, xt, yt);
-			break;
-		case LAVA:
-			lavatile_tick(id, level, xt, yt);
-			break;
-		case ROCK:
-			rocktile_tick(id, level, xt, yt);
-			break;
-		case SAND:
-			sandtile_tick(id, level, xt, yt);
-			break;
-		case TREE_SAPLING:
-		case CACTUS_SAPLING:
-			saplingtile_tick(id, level, xt, yt);
-			break;
-		case TREE:
-			treetile_tick(id, level, xt, yt);
-			break;
-		case WATER:
-			watertile_tick(id, level, xt, yt);
-			break;
-		case WHEAT:
-			wheattile_tick(id, level, xt, yt);
-			break;
-		case INFINITE_FALL:
-		default:
-			//do nothing
-			break;
-	}
+
+/* Base bumpedInto(): by default nothing happens on contact. */
+PUBLIC void tile_bumped_into(Tile* this, struct Level* level, int xt, int yt, struct Entity* entity) {
+    (void) this;
+    (void) level;
+    (void) xt;
+    (void) yt;
+    (void) entity;
 }
 
-/* Notifies the tile that an entity stands on it (flowers break,
- * saplings trample, ...). */
-void tile_steppedOn(TileID id, Level* level, int x, int y, Entity* entity){
-	switch(id){
-		case SAND:
-			if(entity_ismob(entity)) level_set_data(level, x, y, 10);
-			break;
-		case FARMLAND:
-			if(random_next_int(&tiles[id].random, 60) != 0) return;
-			if(level_get_data(level, x, y) < 5) return;
-			level_set_tile(level, x, y, DIRT, 0);
-			break;
-		case WHEAT:
-			if(random_next_int(&tiles[id].random, 60) != 0) return;
-			if(level_get_data(level, x, y) < 2) return;
-			wheattile_harvest(id, level, x, y);
-			break;
-	}
+
+/* Base tick(): by default there is no occasional update. */
+PUBLIC void tile_tick(Tile* this, struct Level* level, int xt, int yt) {
+    (void) this;
+    (void) level;
+    (void) xt;
+    (void) yt;
 }
 
-/* Item-on-tile interaction: shovel/hoe/axe effects per tile type;
- * returns whether the item's swing was consumed. */
-char tile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir){
-	switch(id){
-		case CLOUD_CACTUS:
-			return cloudcactustile_interact(id, level, xt, yt, player, item, attackDir);
-		case CLOUD:
-			return cloudtile_interact(id, level, xt, yt, player, item, attackDir);
-		case DIRT:
-			return dirttile_interact(id, level, xt, yt, player, item, attackDir);
-		case FARMLAND:
-			return farmtile_interact(id, level, xt, yt, player, item, attackDir);
-		case GRASS:
-			return grasstile_interact(id, level, xt, yt, player, item, attackDir);
-		case HARD_ROCK:
-			return hardrocktile_interact(id, level, xt, yt, player, item, attackDir);
-		case GEM_ORE:
-		case GOLD_ORE:
-		case IRON_ORE:
-			return oretile_interact(id, level, xt, yt, player, item, attackDir);
-		case ROCK:
-			return rocktile_interact(id, level, xt, yt, player, item, attackDir);
-		case SAND:
-			return sandtile_interact(id, level, xt, yt, player, item, attackDir);
-		case TREE:
-			return treetile_interact(id, level, xt, yt, player, item, attackDir);
-		case WHEAT:
-			return wheattile_interact(id, level, xt, yt, player, item, attackDir);
-		case FLOWER:
-			return flowertile_interact(id, level, xt, yt, player, item, attackDir);
-		default:
-			return 0;
-	}
+
+/* Base steppedOn(): by default stepping on it does nothing. */
+PUBLIC void tile_stepped_on(Tile* this, struct Level* level, int xt, int yt, struct Entity* entity) {
+    (void) this;
+    (void) level;
+    (void) xt;
+    (void) yt;
+    (void) entity;
 }
 
-/* Use-key interaction (stairs trigger level changes here). */
-char tile_use(TileID id, Level* level, int xt, int yt, Player* player, int attackDir){
-	//doesnt do anything
-	return 0;
+
+/* Base interact(): by default no item interacts with the tile. */
+PUBLIC boolean tile_interact(Tile* this, struct Level* level, int xt, int yt, struct Player* player, struct Item* item, int attackDir) {
+    (void) this;
+    (void) level;
+    (void) xt;
+    (void) yt;
+    (void) player;
+    (void) item;
+    (void) attackDir;
+
+    return false;
 }
 
-/* True for water and lava; used to pick liquid edge sprites. */
-char tile_connectsToLiquid(TileID id) {
-	return tiles[id].connectsToWater || tiles[id].connectsToLava;
+
+/* Base use(): by default the use key does nothing. */
+PUBLIC boolean tile_use(Tile* this, struct Level* level, int xt, int yt, struct Player* player, int attackDir) {
+    (void) this;
+    (void) level;
+    (void) xt;
+    (void) yt;
+    (void) player;
+    (void) attackDir;
+
+    return false;
+}
+
+
+/* A liquid, as far as edge drawing is concerned? Java: connectsToLiquid() */
+PUBLIC boolean tile_connects_to_liquid(Tile* this) {
+    return this->connects_to_water || this->connects_to_lava;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Constructor (Java: Tile(int id))                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Installs the base class methods, registers the tile in tiles[id] and
+ * zeroes its data. Subclasses call this first, their `super(id)`, and then
+ * override whatever they need.
+ */
+PUBLIC void tile_init(Tile* this, TileID id) {
+    this->render             = tile_render;
+    this->may_pass           = tile_may_pass;
+    this->get_light_radius   = tile_get_light_radius;
+    this->hurt               = tile_hurt;
+    this->bumped_into        = tile_bumped_into;
+    this->tick               = tile_tick;
+    this->stepped_on         = tile_stepped_on;
+    this->interact           = tile_interact;
+    this->use                = tile_use;
+    this->connects_to_liquid = tile_connects_to_liquid;
+
+    random_create(&this->random);
+    random_set_seed(&this->random, get_time_us() / 1000);
+
+    this->id                 = id;
+    this->connects_to_grass  = false;
+    this->connects_to_sand   = false;
+    this->connects_to_lava   = false;
+    this->connects_to_water  = false;
+
+    memset(&this->add, 0, sizeof(this->add));
+
+    if (tiles[id] != null) {
+        LOG_WARN("Duplicate tile ids! (%d)", (int) id);
+    }
+
+    tiles[id] = this;
+}
+
+
+/*
+ * Creates the game's 23 tiles. This is Java's set of static fields on Tile
+ * (`public static Tile grass = new GrassTile(0); ...`).
+ */
+PUBLIC void init_tiles(void) {
+    for (int i = 0; i < 256; ++i) {
+        tiles[i] = null;
+    }
+
+    memset(tile_storage, 0, sizeof(tile_storage));
+
+    grasstile_init(&tile_storage[GRASS], GRASS);
+    rocktile_init(&tile_storage[ROCK], ROCK);
+    watertile_init(&tile_storage[WATER], WATER);
+    flowertile_init(&tile_storage[FLOWER], FLOWER);
+    treetile_init(&tile_storage[TREE], TREE);
+    dirttile_init(&tile_storage[DIRT], DIRT);
+    sandtile_init(&tile_storage[SAND], SAND);
+    cactustile_init(&tile_storage[CACTUS], CACTUS);
+    holetile_init(&tile_storage[HOLE], HOLE);
+    saplingtile_init(&tile_storage[TREE_SAPLING], TREE_SAPLING, GRASS, TREE);
+    saplingtile_init(&tile_storage[CACTUS_SAPLING], CACTUS_SAPLING, SAND, CACTUS);
+    farmlandtile_init(&tile_storage[FARMLAND], FARMLAND);
+    wheat_tile_init(&tile_storage[WHEAT], WHEAT);
+    lavatile_init(&tile_storage[LAVA], LAVA);
+    stairstile_init(&tile_storage[STAIRS_DOWN], STAIRS_DOWN, 0);
+    stairstile_init(&tile_storage[STAIRS_UP], STAIRS_UP, 1);
+    infinitefalltile_init(&tile_storage[INFINITE_FALL], INFINITE_FALL);
+    cloudtile_init(&tile_storage[CLOUD], CLOUD);
+    hardrocktile_init(&tile_storage[HARD_ROCK], HARD_ROCK);
+    oretile_init(&tile_storage[IRON_ORE], IRON_ORE, &ironOre);
+    oretile_init(&tile_storage[GOLD_ORE], GOLD_ORE, &goldOre);
+    oretile_init(&tile_storage[GEM_ORE], GEM_ORE, &gem);
+    cloudcactustile_init(&tile_storage[CLOUD_CACTUS], CLOUD_CACTUS);
 }

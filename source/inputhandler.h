@@ -1,40 +1,50 @@
 /*
- * inputhandler.h - Keyboard state for the six game actions.
+ * inputhandler.h - Keyboard state for the six game actions
+ *                  (Java: com.mojang.ld22.InputHandler).
  *
- * Mirrors com.mojang.ld22.InputHandler: every Key counts presses since
- * the last game tick, and game code "absorbs" them one by one, so a
- * single tap is noticed exactly once even if it happens between ticks.
+ * Every Key counts the presses since the last game tick, and the game code
+ * "absorbs" them one by one, so that a single tap is noticed exactly once
+ * even if it happens between ticks.
  */
 #ifndef INPUTHANDLER_H_
-#define INPUTHANDLER_H_
+#define INPUTHANDLER_H_ 1
 
-#ifdef USE_SDL1
-	#include <SDL/SDL.h>
-#else
-	#include <SDL2/SDL.h>
-#endif
+#include "utils/javalang.h"
 
-typedef struct{
-	int presses, absorbs; /* press count since last tick / presses consumed */
-	char down, clicked;   /* held right now? / one unconsumed press pending? */
-} Key;
+#include "sdlcompat.h"
 
-/* The six tracked actions: movement, attacking and opening menus. */
+typedef struct Key Key;
+
+struct Key {
+    /* Press count since the last tick, and how many of them were consumed.
+     * Java: `private int presses, absorbs` */
+    int presses, absorbs;
+    /* Held right now. Java: `private boolean down` */
+    boolean down;
+    /* One unconsumed press pending. Java: `private boolean clicked` */
+    boolean clicked;
+};
+
+/* The six tracked actions: movement, attacking and opening menus.
+ * Java: `public Key up, down, left, right, attack, menu` */
 extern Key up, down, left, right, attack, menu;
 
-/* Records a press/release transition on a single Key. */
-void key_toggle(Key* key, char pressed);
-/* Turns pending presses into `clicked`, one per game tick. */
-void key_tick(Key* key);
+/* Registers a press (true) or a release (false); counts the press for this
+ * tick. Java: Key.toggle(boolean pressed) */
+PUBLIC void key_toggle(Key* this, boolean pressed);
+
+/* Turns the pending presses into `clicked`, at most one per game tick.
+ * Java: Key.tick() */
+PUBLIC void key_tick(Key* this);
 
 /* Maps an SDL keysym to an action and forwards the transition. */
 #ifdef USE_SDL1
-void input_toggle(SDLKey key, char pressed);
+PUBLIC void input_toggle(SDLKey key, boolean pressed);
 #else
-void input_toggle(SDL_Keycode key, char pressed);
-#endif
+PUBLIC void input_toggle(SDL_Keycode key, boolean pressed);
+#endif /* USE_SDL1 */
 
-/* Ticks all six keys; called once per game tick. */
-void input_tick();
+/* Ticks all six keys; called once per game tick. Java: InputHandler.tick() */
+PUBLIC void input_tick(void);
 
 #endif /* INPUTHANDLER_H_ */

@@ -1,14 +1,23 @@
 /*
- * furnace.h - Furnace furniture: smelting station (ores to ingots).
+ * furnace.h - The Furnace: smelting station, ores into ingots
+ *             (Java: com.mojang.ld22.entity.Furnace).
  */
 #ifndef FURNACE_H
-#define FURNACE_H
+#define FURNACE_H 1
+
 #include "furniture.h"
+
+#include "../utils/javalang.h"
+
+/* A furnace adds nothing to Furniture but its use(), so it is an alias. */
 typedef Furniture Furnace;
 
-struct _Player;
+struct Player;
 
-void furnace_create(Furnace* furnace);
-char furnace_use(Furnace* furnace, struct _Player* player, int attackDir);
+/* Constructor. Java: Furnace() */
+PUBLIC void furnace_create(Furnace* this);
 
-#endif // FURNACE_H
+/* Java: Furnace.use(Player, int) */
+PUBLIC boolean furnace_use(Furnace* this, struct Player* player, int attackDir);
+
+#endif /* FURNACE_H */

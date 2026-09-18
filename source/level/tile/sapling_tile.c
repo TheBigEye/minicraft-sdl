@@ -1,43 +1,64 @@
 /*
- * sapling_tile.c - Sapling tile behavior (Java: tile.SaplingTile).
+ * sapling_tile.c - Behaviour of the sapling (Java: tile.SaplingTile).
+ *
+ * It ages in the data byte and, once it passes 100, turns into the tile it
+ * grows to, a tree or a cactus. Any hit uproots it and leaves bare ground.
  */
 #include "tile.h"
-#include "../../level/level.h"
+#include "sapling_tile.h"
+
 #include "../../gfx/color.h"
 
-/* Stores the ground/growth tiles and copies the ground tile's
- * connection flags so edges blend the same way. */
-void saplingtile_init(TileID id, TileID onType, TileID growsTo){
-	tile_init(id);
-	
-	Tile* tile = tiles + id;
-	tile->add.sapling.onType = onType;
-	tile->add.sapling.growsTo = growsTo;
-	
-	Tile* on = tiles + onType;
-	
-	tile->connectsToSand = on->connectsToSand;
-	tile->connectsToGrass = on->connectsToGrass;
-	tile->connectsToWater = on->connectsToWater;
-	tile->connectsToLava = on->connectsToLava;
+
+/* Constructor: stores the ground and the tile it grows into, copying flags. */
+PUBLIC void saplingtile_init(Tile* this, TileID id, TileID onType, TileID growsTo) {
+    tile_init(this, id);
+
+    this->render = saplingtile_render;
+    this->tick   = saplingtile_tick;
+    this->hurt   = saplingtile_hurt;
+
+    this->add.sapling.onType  = onType;
+    this->add.sapling.growsTo = growsTo;
+
+    Tile* on = tiles[onType];
+
+    this->connects_to_sand  = on->connects_to_sand;
+    this->connects_to_grass = on->connects_to_grass;
+    this->connects_to_water = on->connects_to_water;
+    this->connects_to_lava  = on->connects_to_lava;
 }
 
-/* Draws the ground tile underneath with the sapling sprite on top. */
-void saplingtile_render(TileID id, Screen* screen, Level* level, int x, int y){
-	tile_render(tiles[id].add.sapling.onType, screen, level, x, y);
-	int col = getColor4(10, 40, 50, -1);
-	render_screen(screen, x * 16 + 4, y * 16 + 4, 11 + 3 * 32, col, 0);
+
+/* The ground underneath, with the sapling on top of it. */
+PUBLIC void saplingtile_render(Tile* this, Screen* screen, Level* level, int x, int y) {
+    Tile* on = tiles[this->add.sapling.onType];
+
+    on->render(on, screen, level, x, y);
+
+    int col = get_color4(10, 40, 50, -1);
+
+    screen->render(screen, x * 16 + 4, y * 16 + 4, 11 + 3 * 32, col, 0);
 }
 
-/* Ages the data byte each tick; past 100 the sapling grows into its
- * configured tile. */
-void saplingtile_tick(TileID id, Level* level, int xt, int yt){
-	int age = level_get_data(level, xt, yt) + 1;
-	if(age > 100) level_set_tile(level, xt, yt, tiles[id].add.sapling.growsTo, 0);
-	else level_set_data(level, xt, yt, age);
+
+/* Ages one step per tick; once past 100 it grows. */
+PUBLIC void saplingtile_tick(Tile* this, Level* level, int xt, int yt) {
+    int age = level->get_data(level, xt, yt) + 1;
+
+    if (age > 100) {
+        level->set_tile(level, xt, yt, tiles[this->add.sapling.growsTo], 0);
+    } else {
+        level->set_data(level, xt, yt, age);
+    }
 }
 
-/* Any attack uproots the sapling back to its ground tile. */
-void saplingtile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
-	level_set_tile(level, x, y, tiles[id].add.sapling.onType, 0);
+
+/* Any hit uproots it: it becomes the bare ground again. */
+PUBLIC void saplingtile_hurt(Tile* this, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
+    (void) source;
+    (void) dmg;
+    (void) attackDir;
+
+    level->set_tile(level, x, y, tiles[this->add.sapling.onType], 0);
 }

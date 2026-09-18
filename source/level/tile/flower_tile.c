@@ -1,75 +1,110 @@
 /*
- * flower_tile.c - Flower tile behavior (Java: tile.FlowerTile).
+ * flower_tile.c - Behaviour of the flowers (Java: tile.FlowerTile).
+ *
+ * They are grass with flowers on top: any tool, or a hit, picks them and
+ * leaves grass behind, dropping flowers. The data byte decides which
+ * corner the flower is drawn in.
  */
 #include "tile.h"
+#include "flower_tile.h"
+
 #include <stdlib.h>
-#include "../../item/resourceitem.h"
+
 #include "../../entity/itementity.h"
-#include "../../entity/player.h"
-#include "../../item/item.h"
 #include "../../gfx/color.h"
+#include "../../item/item.h"
+#include "../../item/resourceitem.h"
 
-/* Registers the flower connection flags; the variant shape comes
- * from the tile data at render time. */
-void flowertile_init(TileID id){
-	tile_init(id);
-	tiles[id].connectsToGrass = 1;
+
+/* Constructor: flowers draw on grass, so they share its edges. */
+PUBLIC void flowertile_init(Tile* this, TileID id) {
+    tile_init(this, id);
+
+    this->render   = flowertile_render;
+    this->hurt     = flowertile_hurt;
+    this->interact = flowertile_interact;
+
+    this->connects_to_grass = true;
 }
 
 
-/* Draws flowers scattered over the grass background. */
-void flowertile_render(TileID id, Screen* screen, Level* level, int x, int y) {
-	tile_render(GRASS, screen, level, x, y);
+/* Grass underneath, plus one flower on one of the two diagonals. */
+PUBLIC void flowertile_render(Tile* this, Screen* screen, Level* level, int x, int y) {
+    (void) this;
 
-	int data = level_get_data(level, x, y);
-	int shape = (data / 16) % 2;
-	int flowerCol = getColor4(10, level->grassColor, 555, 440);
+    Tile* grass = tiles[GRASS];
 
-	if(shape == 0) render_screen(screen, x * 16 + 0, y * 16 + 0, 1 + 1 * 32, flowerCol, 0);
-	if(shape == 1) render_screen(screen, x * 16 + 8, y * 16 + 0, 1 + 1 * 32, flowerCol, 0);
+    grass->render(grass, screen, level, x, y);
 
-	if(shape == 1) render_screen(screen, x * 16 + 0, y * 16 + 8, 1 + 1 * 32, flowerCol, 0);
-	if(shape == 0) render_screen(screen, x * 16 + 8, y * 16 + 8, 1 + 1 * 32, flowerCol, 0);
+    int data = level->get_data(level, x, y);
+    int shape = (data / 16) % 2;
+    int flowerCol = get_color4(10, level->grassColor, 555, 440);
 
-}
+    if (shape == 0) screen->render(screen, x * 16 + 0, y * 16 + 0, 1 + 1 * 32, flowerCol, 0);
+    if (shape == 1) screen->render(screen, x * 16 + 8, y * 16 + 0, 1 + 1 * 32, flowerCol, 0);
 
-/* Any tool swing clears the flowers and drops a flower item. */
-char flowertile_interact(TileID id, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
-	if(item->id == TOOL){
-		if(item->add.tool.type == SHOVEL){
-			if(player_payStamina(player, 4 - item->add.tool.level)){
-				Random* random = &tiles[id].random;
-				ItemEntity* entity = malloc(sizeof(ItemEntity));
-				Item item;
-				resourceitem_create(&item, &flower);
-				itementity_create(entity, item, xt*16 + random_next_int(random, 10) + 3, yt*16 + random_next_int(random, 10) + 3);
-				level_addEntity(level, (Entity *) entity);
-
-				entity = malloc(sizeof(ItemEntity));
-				itementity_create(entity, item, xt*16 + random_next_int(random, 10) + 3, yt*16 + random_next_int(random, 10) + 3);
-				level_addEntity(level, (Entity *) entity);
-				level_set_tile(level, xt, yt, GRASS, 0);
-				return 1;
-			}
-		}
-	}
-	return 0;
+    if (shape == 1) screen->render(screen, x * 16 + 0, y * 16 + 8, 1 + 1 * 32, flowerCol, 0);
+    if (shape == 0) screen->render(screen, x * 16 + 8, y * 16 + 8, 1 + 1 * 32, flowerCol, 0);
 }
 
 
-/* Attacking the tile also clears it into a flower item. */
-void flowertile_hurt(TileID id, Level* level, int x, int y, Mob* source, int dmg, int attackDir){
-	Random* random = &tiles[id].random;
-	int count = random_next_int(random, 2) + 1;
-	for (int i = 0; i < count; i++) {
-		ItemEntity* ent = malloc(sizeof(ItemEntity));
-		Item res;
-		resourceitem_create(&res, &flower);
-		int xx = x * 16 + random_next_int(random, 10) + 3;
-		int yy = y * 16 + random_next_int(random, 10) + 3;
-		itementity_create(ent, res, xx, yy);
-		level_addEntity(level, (Entity *) ent);
-	}
+/* Picking with the shovel: clears the flowers and drops two of them. */
+PUBLIC boolean flowertile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir) {
+    (void) attackDir;
 
-	level_set_tile(level, x, y, GRASS, 0);
+    if (item->id == TOOL) {
+        if (item->add.tool.type == SHOVEL) {
+            if (player_pay_stamina(player, 4 - item->add.tool.level)) {
+                Random* random = &this->random;
+
+                ItemEntity* entity = new(ItemEntity);
+                Item drop;
+
+                resourceitem_create(&drop, &flower);
+
+                itementity_create(entity, drop,
+                        xt * 16 + random->next_int(random, 10) + 3,
+                        yt * 16 + random->next_int(random, 10) + 3);
+                level->add(level, (Entity*) entity);
+
+                entity = new(ItemEntity);
+                itementity_create(entity, drop,
+                        xt * 16 + random->next_int(random, 10) + 3,
+                        yt * 16 + random->next_int(random, 10) + 3);
+                level->add(level, (Entity*) entity);
+
+                level->set_tile(level, xt, yt, tiles[GRASS], 0);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+/* A hit picks them too, dropping 1-2 flowers. */
+PUBLIC void flowertile_hurt(Tile* this, Level* level, int x, int y, Mob* source, int dmg, int attackDir) {
+    (void) source;
+    (void) dmg;
+    (void) attackDir;
+
+    Random* random = &this->random;
+
+    int count = random->next_int(random, 2) + 1;
+
+    for (int i = 0; i < count; i++) {
+        ItemEntity* ent = new(ItemEntity);
+        Item res;
+
+        resourceitem_create(&res, &flower);
+
+        int xx = x * 16 + random->next_int(random, 10) + 3;
+        int yy = y * 16 + random->next_int(random, 10) + 3;
+
+        itementity_create(ent, res, xx, yy);
+        level->add(level, (Entity*) ent);
+    }
+
+    level->set_tile(level, x, y, tiles[GRASS], 0);
 }

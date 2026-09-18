@@ -1,78 +1,96 @@
 /*
- * dead_menu.c - Death screen behavior (Java: DeadMenu).
+ * dead_menu.c - The death screen
+ *               (Java: com.mojang.ld22.screen.DeadMenu).
  */
-#include "../inputhandler.h"
-#include <stdio.h>
-#include "../game.h"
-#include "../gfx/font.h"
-#include "../gfx/color.h"
 #include "dead_menu.h"
 
+#include <stdio.h>
 #include <string.h>
 
-int deadmenu_inputDelay = 60;
-static char udiedawman[] = "You died! Aww!";
+#include "../entity/player.h"
+#include "../game.h"
+#include "../gfx/color.h"
+#include "../gfx/font.h"
+#include "../inputhandler.h"
+#include "title_menu.h"
+#include "menu.h"
 
-const menu_vt deadmenu_vt = {
-	&deadmenu_tick,
-	&deadmenu_render,
-	&deadmenu_init
-};
+
+PRIVATE char udiedawman[] = "You died! Aww!";
+
+DeadMenu deadmenu;
 
 
-/* Ignores input for the first 60 ticks, then returns to the title. */
-void deadmenu_tick(){
-	if(deadmenu_inputDelay > 0){
-		--deadmenu_inputDelay;
-	}else if(attack.clicked || menu.clicked){
-		game_set_menu(mid_TITLE);
-	}
+/* Java: new DeadMenu(). Installs the methods and arms the input lockout. */
+PUBLIC void deadmenu_create(DeadMenu* this) {
+    this->inputDelay = 60;
+
+    this->menu.tick = deadmenu_tick;
+    this->menu.render = deadmenu_render;
+    this->menu.init = deadmenu_init;
 }
 
 
-void deadmenu_init() {
-	deadmenu_inputDelay = 60;
+/* Java: DeadMenu.tick(). Ignores input for the first 60 ticks, then returns
+ * to the title. */
+PUBLIC void deadmenu_tick(Menu* this) {
+    DeadMenu* dead = (DeadMenu*) this;
+
+    if (dead->inputDelay > 0) {
+        --dead->inputDelay;
+    } else if (attack.clicked || menu.clicked) {
+        game_set_menu(&titlemenu);
+    }
 }
 
 
-/* Draws the death message with play time and score. */
-void deadmenu_render(Screen* screen) {
-	char vd[] = "";
-	char timeString[256];
+/* Java: DeadMenu.init() */
+PUBLIC void deadmenu_init(Menu* this) {
+    ((DeadMenu*) this)->inputDelay = 60;
+}
 
-	font_renderFrame(screen, vd, 0, 1, 3, 18, 9);
-	font_draw(udiedawman, strlen(udiedawman), screen, 2 * 8, 4 * 8, getColor4(-1, 555, 555, 555));
 
-	int seconds = game_gameTime / 60;
-	int minutes = seconds / 60;
-	int hours = minutes / 60;
-	minutes %= 60;
-	seconds %= 60;
+/* Java: DeadMenu.render(Screen). Draws the death message with the play time
+ * and the score. */
+PUBLIC void deadmenu_render(Menu* this, Screen* screen) {
+    (void) this;
 
-	if (hours > 0) {
-		if (seconds < 10) {
-			sprintf(timeString, "%dh0%dm", hours, minutes);
-		} else {
-			sprintf(timeString, "%dh%dm", hours, minutes);
-		}
-	} else {
-		if (seconds < 10) {
-			sprintf(timeString, "%dm 0%ds", minutes, seconds);
-		} else {
-			sprintf(timeString, "%dm %ds", minutes, seconds);
-		}
-	}
+    char timeString[256];
 
-	char time[] = "Time:";
-	char scor[] = "Score:";
-	char prec[] = "Press C to lose";
+    font_render_frame(screen, "", 0, 1, 3, 18, 9);
+    font_draw(udiedawman, strlen(udiedawman), screen, 2 * 8, 4 * 8, get_color4(-1, 555, 555, 555));
 
-	char score[32];
-	sprintf(score, "%d", game_player->score);
+    int seconds = game_gameTime / 60;
+    int minutes = seconds / 60;
+    int hours = minutes / 60;
 
-	font_draw(time, 5, screen, 2 * 8, 5 * 8, getColor4(-1, 555, 555, 555));
-	font_draw(timeString, strlen(timeString), screen, (2 + 5) * 8, 5 * 8, getColor4(-1, 550, 550, 550));
-	font_draw(scor, 6, screen, 2 * 8, 6 * 8, getColor4(-1, 555, 555, 555));
-	font_draw(score, strlen(score), screen, (2 + 6) * 8, 6 * 8, getColor4(-1, 550, 550, 550));
-	font_draw(prec, strlen(prec), screen, 2 * 8, 8 * 8, getColor4(-1, 333, 333, 333));
+    minutes %= 60;
+    seconds %= 60;
+
+    if (hours > 0) {
+        if (seconds < 10) {
+            sprintf(timeString, "%dh0%dm", hours, minutes);
+        } else {
+            sprintf(timeString, "%dh%dm", hours, minutes);
+        }
+    } else {
+        if (seconds < 10) {
+            sprintf(timeString, "%dm 0%ds", minutes, seconds);
+        } else {
+            sprintf(timeString, "%dm %ds", minutes, seconds);
+        }
+    }
+
+    char time[] = "Time:";
+    char scor[] = "Score:";
+    char prec[] = "Press C to lose";
+    char score[32];
+
+    sprintf(score, "%d", game_player->score);
+
+    font_draw(time, 5, screen, 2 * 8, 5 * 8, get_color4(-1, 555, 555, 555));
+    font_draw(timeString, strlen(timeString), screen, (2 + 5) * 8, 5 * 8, get_color4(-1, 550, 550, 550));
+    font_draw(scor, 6, screen, 2 * 8, 6 * 8, get_color4(-1, 555, 555, 555));
+    font_draw(score, strlen(score), screen, (2 + 6) * 8, 6 * 8, get_color4(-1, 550, 550, 550));
+    font_draw(prec, strlen(prec), screen, 2 * 8, 8 * 8, get_color4(-1, 333, 333, 333));
 }

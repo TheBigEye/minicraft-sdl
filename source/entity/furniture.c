@@ -1,219 +1,225 @@
 /*
- * furniture.c - Furniture base class (Java: entity.Furniture).
+ * furniture.c - The Furniture base class
+ *               (Java: com.mojang.ld22.entity.Furniture).
  *
- * Placeable stationary entities: crafting stations, chests and
- * lanterns. They block movement, render one sprite and can be
- * picked up again (power glove) into a furniture item.
+ * Placeable stationary entities: crafting stations, chests and lanterns.
+ * They block movement, render a single sprite and can be picked back up
+ * with the power glove into a furniture item.
  */
 #include "furniture.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "entity.h"
-#include "player.h"
-#include "../item/item.h"
-#include "inventory.h"
-#include "../item/furniture_item.h"
 
+#include "../item/furniture_item.h"
+#include "../item/item.h"
 #include "anvil.h"
 #include "chest.h"
+#include "entity.h"
 #include "furnace.h"
+#include "inventory.h"
 #include "lantern.h"
 #include "oven.h"
+#include "player.h"
 #include "workbench.h"
 
-/* Java: Furniture.blocks(Entity e) { return true; } */
+
 /* Furniture always blocks other entities, as in Java. */
-char furniture_blocks(Furniture* furniture, Entity* other) {
-	(void) furniture; (void) other;
-	return 1;
+PUBLIC boolean furniture_blocks(Furniture* this, Entity* other) {
+    /* Java: Furniture.blocks(Entity e) { return true; } */
+    (void) this;
+    (void) other;
+
+    return true;
 }
 
-/* The Furniture vtable (= the Java `Furniture` class). Subclasses inherit
- * these entries and override `use` / `getLightRadius` / `free` as needed. */
-const EntityVTable furniture_vtable = {
-	.tick           = (vt_tick_fn) furniture_tick,
-	.render         = (vt_render_fn) furniture_render,
-	.blocks         = (vt_blocks_fn) furniture_blocks,
-	.hurt           = entity_hurt,
-	.hurtTile       = entity_hurtTile,
-	.touchedBy      = (vt_touchedBy_fn) furniture_touchedBy,
-	.isBlockableBy  = entity_isBlockableBy,
-	.touchItem      = entity_touchItem,
-	.canSwim        = entity_canSwim,
-	.use            = entity_use,
-	.getLightRadius = entity_getLightRadius,
-	.die            = entity_die,
-	.doHurt         = entity_doHurt,
-	.isSwimming     = entity_isSwimming,
-	.free           = (vt_free_fn) furniture_free,
-};
 
 /* Class-tag test for the six furniture subclasses. */
-char entity_isfurniture(Entity* entity) {
-	/* The C equivalent of Java's `e instanceof Furniture` checks. */
-	switch (entity->type) {
-		case ANVIL:
-		case CHEST:
-		case FURNACE:
-		case LANTERN:
-		case OVEN:
-		case WORKBENCH:
-			return 1;
-		default:
-			return 0;
-	}
-}
-
-Furniture* entity_createFurniture(EntityId id) {
-	/* Factory: the C equivalent of Java's `new Anvil()`, `new Chest()`, ... */
-	Furniture* furn = 0;
-	switch (id) {
-		case ANVIL:
-			furn = malloc(sizeof(Anvil));
-			if (furn) anvil_create((Anvil *) furn);
-			break;
-		case CHEST:
-			furn = malloc(sizeof(Chest));
-			if (furn) chest_create((Chest *) furn);
-			break;
-		case FURNACE:
-			furn = malloc(sizeof(Furnace));
-			if (furn) furnace_create((Furnace *) furn);
-			break;
-		case LANTERN:
-			furn = malloc(sizeof(Lantern));
-			if (furn) lantern_create((Lantern *) furn);
-			break;
-		case OVEN:
-			furn = malloc(sizeof(Oven));
-			if (furn) oven_create((Oven *) furn);
-			break;
-		case WORKBENCH:
-			furn = malloc(sizeof(Workbench));
-			if (furn) workbench_create((Workbench *) furn);
-			break;
-		default:
-			break;
-	}
-
-	return furn;
-}
-
-/* Creates an independent copy of a furniture instance; used when
- * a furniture item is placed into the world. */
-Furniture* furniture_create_copy(Furniture* old) {
-	/* C-specific helper: deep-copies a furniture entity (chests copy their
-	 * inventory). Used when furniture is picked up with the power glove. */
-	size_t size;
-	switch (old->entity.type) {
-		case WORKBENCH: size = sizeof(Workbench); break;
-		case LANTERN:   size = sizeof(Lantern);   break;
-		case OVEN:      size = sizeof(Oven);      break;
-		case FURNACE:   size = sizeof(Furnace);   break;
-		case ANVIL:     size = sizeof(Anvil);     break;
-		case CHEST:     size = sizeof(Chest);     break;
-
-		default:
-			return 0;
-	}
-
-	Furniture* copy = malloc(size);
-	if (!copy) return 0;
-	memcpy(copy, old, size);
-	old->name = 0;
-
-	if (old->entity.type == CHEST) {
-		Chest* chest = (Chest*) copy;
-		Chest* oldc = (Chest*) old;
-
-		inventory_create(&chest->inventory);
-		for (int e = 0; e < oldc->inventory.items.size; ++e) {
-			Item* itm = oldc->inventory.items.elements[e];
-			inventory_addItem(&chest->inventory, itm);
-
-			if (itm->id == FURNITURE) {
-				itm->add.furniture.furniture = 0;
-			}
-		}
-	}
-
-	return copy;
-}
-
-/* Base initialization: display name copy, sprite and small box. */
-void furniture_create(Furniture* furniture, char* name){
-	entity_create((Entity *) furniture);
-	furniture->entity.vt = &furniture_vtable; /* subclasses override with their own vtable */
-
-	furniture->pushTime = 0;
-	furniture->pushDir = -1;
-	furniture->col = 0;
-	furniture->sprite = 0;
-	furniture->shouldTake = 0;
-
-	furniture->name = name;
-	furniture->entity.xr = 3;
-	furniture->entity.yr = 3;
+PUBLIC boolean entity_is_furniture(Entity* entity) {
+    switch (entity->type) {
+        case ANVIL:
+        case CHEST:
+        case FURNACE:
+        case LANTERN:
+        case OVEN:
+        case WORKBENCH:
+            return true;
+        default:
+            return false;
+    }
 }
 
 
-/* Base furniture has no per-tick behavior. */
-void furniture_tick(Furniture* furniture){
-	if (furniture->shouldTake){
-		Item* item = furniture->shouldTake->activeItem;
-		if (item && item->id == POWERGLOVE){
-			Furniture* cp = furniture_create_copy(furniture); // XXX ew
-			entity_remove((Entity *) furniture);
-			inventory_addItemIntoSlot_nalloc(&furniture->shouldTake->inventory, 0, item);
-			item = malloc(sizeof(Item));
-			furnitureitem_create(item, cp);
-			furniture->shouldTake->activeItem = item;
-		}
+/* Factory: the C counterpart of Java's new Anvil(), new Chest() and so on. */
+PUBLIC Furniture* entity_create_furniture(EntityId id) {
+    Furniture* furn = null;
 
-		furniture->shouldTake = 0;
-	}
+    switch (id) {
+        case ANVIL:
+            furn = (Furniture*) new(Anvil);
+            if (furn) anvil_create((Anvil*) furn);
+            break;
+        case CHEST:
+            furn = (Furniture*) new(Chest);
+            if (furn) chest_create((Chest*) furn);
+            break;
+        case FURNACE:
+            furn = (Furniture*) new(Furnace);
+            if (furn) furnace_create((Furnace*) furn);
+            break;
+        case LANTERN:
+            furn = (Furniture*) new(Lantern);
+            if (furn) lantern_create((Lantern*) furn);
+            break;
+        case OVEN:
+            furn = (Furniture*) new(Oven);
+            if (furn) oven_create((Oven*) furn);
+            break;
+        case WORKBENCH:
+            furn = (Furniture*) new(Workbench);
+            if (furn) workbench_create((Workbench*) furn);
+            break;
+        default:
+            break;
+    }
 
-	if (furniture->pushDir == 0) entity_move((Entity *) furniture, 0, 1);
-	if (furniture->pushDir == 1) entity_move((Entity *) furniture, 0, -1);
-	if (furniture->pushDir == 2) entity_move((Entity *) furniture, -1, 0);
-	if (furniture->pushDir == 3) entity_move((Entity *) furniture, 1, 0);
+    return furn;
+}
 
-	furniture->pushDir = -1;
 
-	if (furniture->pushTime > 0) --furniture->pushTime;
+/*
+ * Builds an independent copy of a furniture instance, used when a
+ * furniture item is placed back into the world.
+ */
+PUBLIC Furniture* furniture_create_copy(Furniture* old) {
+    size_t size;
+
+    switch (old->entity.type) {
+        case WORKBENCH: size = sizeof(Workbench); break;
+        case LANTERN:   size = sizeof(Lantern);   break;
+        case OVEN:      size = sizeof(Oven);      break;
+        case FURNACE:   size = sizeof(Furnace);   break;
+        case ANVIL:     size = sizeof(Anvil);     break;
+        case CHEST:     size = sizeof(Chest);     break;
+
+        default:
+            return null;
+    }
+
+    Furniture* copy = malloc(size);
+
+    if (!copy) return null;
+
+    memcpy(copy, old, size);
+
+    /* Ownership of the name moves to the copy, without freeing it. */
+    old->name = null;
+
+    if (old->entity.type == CHEST) {
+        Chest* chest = (Chest*) copy;
+        Chest* oldc = (Chest*) old;
+
+        inventory_create(&chest->inventory);
+
+        for (int e = 0; e < oldc->inventory.items.size; ++e) {
+            Item* itm = oldc->inventory.items.elements[e];
+
+            inventory_add(&chest->inventory, itm);
+
+            if (itm->id == FURNITURE) {
+                itm->add.furniture.furniture = null;
+            }
+        }
+    }
+
+    return copy;
+}
+
+
+/* Constructor: copies the display name and sets the small bounding box. */
+PUBLIC void furniture_create(Furniture* this, String name) {
+    entity_create(&this->entity);   /* super() */
+
+    /* What Furniture overrides from Entity.
+     * Java: class Furniture extends Entity */
+    this->entity.tick       = (entity_tick_fn) furniture_tick;
+    this->entity.render     = (entity_render_fn) furniture_render;
+    this->entity.blocks     = (entity_blocks_fn) furniture_blocks;
+    this->entity.touched_by = (entity_touched_by_fn) furniture_touched_by;
+    this->entity.free       = (entity_free_fn) furniture_free;
+
+    this->pushTime = 0;
+    this->pushDir = -1;
+    this->col = 0;
+    this->sprite = 0;
+    this->shouldTake = null;
+
+    this->name = name;
+    this->entity.xr = 3;
+    this->entity.yr = 3;
+}
+
+
+/* Base furniture has no per-tick behaviour of its own. */
+PUBLIC void furniture_tick(Furniture* this) {
+    if (this->shouldTake) {
+        Item* item = this->shouldTake->activeItem;
+
+        if (item && item->id == POWERGLOVE) {
+            Furniture* cp = furniture_create_copy(this);   /* XXX ew */
+            entity_remove(&this->entity);
+            inventory_add_no_copy(&this->shouldTake->inventory, 0, item);
+
+            item = new(Item);
+            furnitureitem_create(item, cp);
+            this->shouldTake->activeItem = item;
+        }
+
+        this->shouldTake = null;
+    }
+
+    if (this->pushDir == 0) entity_move(&this->entity, 0, 1);
+    if (this->pushDir == 1) entity_move(&this->entity, 0, -1);
+    if (this->pushDir == 2) entity_move(&this->entity, -1, 0);
+    if (this->pushDir == 3) entity_move(&this->entity, 1, 0);
+
+    this->pushDir = -1;
+
+    if (this->pushTime > 0) --this->pushTime;
 }
 
 
 /* Draws the furniture's single sprite at its position. */
-void furniture_render(Furniture* furniture, Screen* screen){
-	int x = furniture->entity.x;
-	int y = furniture->entity.y;
-	int sprite = furniture->sprite;
-	int col = furniture->col;
+PUBLIC void furniture_render(Furniture* this, Screen* screen) {
+    int x = this->entity.x;
+    int y = this->entity.y;
+    int sprite = this->sprite;
+    int col = this->col;
 
-	render_screen(screen, x - 8, y - 8 - 4, sprite * 2 + 8 * 32, col, 0);
-	render_screen(screen, x - 0, y - 8 - 4, sprite * 2 + 8 * 32 + 1, col, 0);
-	render_screen(screen, x - 8, y - 0 - 4, sprite * 2 + 8 * 32 + 32, col, 0);
-	render_screen(screen, x - 0, y - 0 - 4, sprite * 2 + 8 * 32 + 33, col, 0);
+    screen->render(screen, x - 8, y - 8 - 4, sprite * 2 + 8 * 32, col, 0);
+    screen->render(screen, x - 0, y - 8 - 4, sprite * 2 + 8 * 32 + 1, col, 0);
+    screen->render(screen, x - 8, y - 0 - 4, sprite * 2 + 8 * 32 + 32, col, 0);
+    screen->render(screen, x - 0, y - 0 - 4, sprite * 2 + 8 * 32 + 33, col, 0);
 }
 
 
-void furniture_touchedBy(Furniture* furniture, Entity* entity){
-	if(entity->type == PLAYER && furniture->pushTime == 0){
-		furniture->pushDir = ((Mob*) entity)->dir;
-		furniture->pushTime = 10;
-	}
+/* A player walking into it pushes it, in the direction it is facing. */
+PUBLIC void furniture_touched_by(Furniture* this, Entity* entity) {
+    if (entity->type == PLAYER && this->pushTime == 0) {
+        this->pushDir = ((Mob*) entity)->dir;
+        this->pushTime = 10;
+    }
 }
 
 
 /* Pickup handling when the power glove grabs the furniture. */
-void furniture_take(Furniture* furniture, Player* player){
-	furniture->shouldTake = player;
+PUBLIC void furniture_take(Furniture* this, Player* player) {
+    this->shouldTake = player;
 }
 
 
-/* Frees the heap-allocated display name. */
-void furniture_free(Furniture* furniture){
-	free(furniture->name);
+/* Releases the heap-allocated display name. */
+PUBLIC void furniture_free(Furniture* this) {
+    delete(this->name);
 }

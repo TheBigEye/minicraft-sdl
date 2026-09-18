@@ -1,20 +1,29 @@
 /*
- * grass_tile.h - Grass tile: the overworld's surface; spreads onto
- *                dirt and can be tilled or dug.
+ * grass_tile.h - The grass tile (Java: tile.GrassTile).
+ *
+ * The shovel turns it into dirt and the hoe into farmland, with a 1 in 5
+ * chance of dropping seeds. Now and then it spreads onto a neighbouring
+ * dirt square.
  */
 #ifndef LEVEL_TILE_GRASS_TILE_H_
-#define LEVEL_TILE_GRASS_TILE_H_
+#define LEVEL_TILE_GRASS_TILE_H_ 1
 
 #include "tile.h"
 
-struct _Item;
-struct _Player;
+#include "../level.h"
+#include "../../entity/player.h"
+#include "../../item/item.h"
 
-void grasstile_init(char id);
-/* Spreads grass onto an adjacent dirt tile now and then. */
-void grasstile_tick(TileID id, Level* level, int xt, int yt);
-void grasstile_render(TileID id, Screen* screen, Level* level, int x, int y);
-/* Shovel turns it to dirt, hoe to farmland; both may drop seeds. */
-char grasstile_interact(TileID id, Level* level, int xt, int yt, struct _Player* player, struct _Item* item, int attackDir);
+/* Constructor */
+PUBLIC void grasstile_init(Tile* this, TileID id);
+
+/* Java: GrassTile.render(Screen, Level, int, int) */
+PUBLIC void grasstile_render(Tile* this, Screen* screen, Level* level, int x, int y);
+
+/* Java: GrassTile.tick(Level, int, int) */
+PUBLIC void grasstile_tick(Tile* this, Level* level, int xt, int yt);
+
+/* Java: GrassTile.interact(Level, int, int, Player, Item, int) */
+PUBLIC boolean grasstile_interact(Tile* this, Level* level, int xt, int yt, Player* player, Item* item, int attackDir);
 
 #endif /* LEVEL_TILE_GRASS_TILE_H_ */

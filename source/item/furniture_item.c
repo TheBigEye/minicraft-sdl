@@ -1,60 +1,78 @@
 /*
- * furniture_item.c - Furniture item behavior (Java: FurnitureItem).
+ * furniture_item.c - The furniture item
+ *                    (Java: com.mojang.ld22.item.FurnitureItem).
  */
 #include "furniture_item.h"
-#include "item.h"
-#include "../entity/furniture.h"
-#include "../gfx/screen.h"
-#include "../gfx/font.h"
-#include "../gfx/color.h"
 
+#include <stdlib.h>
 #include <string.h>
 
+#include "../entity/furniture.h"
+#include "../gfx/color.h"
+#include "../gfx/font.h"
+#include "../gfx/screen.h"
+#include "item.h"
 
-/* Tags the item as furniture and takes ownership of the entity. */
-void furnitureitem_create(Item* item, Furniture* furniture){
-	item->id = FURNITURE;
-	item->add.furniture.furniture = furniture;
-	item->add.furniture.placed = 0;
+
+/* Constructor: tags the item as furniture and takes ownership of the
+ * entity. Java: FurnitureItem(Furniture furniture) */
+PUBLIC void furnitureitem_create(Item* this, struct Furniture* furniture) {
+    this->id = FURNITURE;
+    this->add.furniture.furniture = furniture;
+    this->add.furniture.placed = false;
 }
 
 
-/* Icon color comes from the carried furniture. */
-int furnitureitem_getColor(Item* item){
-	return item->add.furniture.furniture->col;
+/* Java: FurnitureItem.getColor(). The icon color comes from the carried
+ * furniture. */
+PUBLIC int furnitureitem_get_color(Item* this) {
+    return this->add.furniture.furniture->col;
 }
 
 
-/* Icon sprite is the furniture sprite offset into the item row. */
-int furnitureitem_getSprite(Item* item){
-	return item->add.furniture.furniture->sprite + 10 * 32;
+/* Java: FurnitureItem.getSprite(). The icon sprite is the furniture sprite
+ * offset into the item row. */
+PUBLIC int furnitureitem_get_sprite(Item* this) {
+    return this->add.furniture.furniture->sprite + 10 * 32;
 }
 
 
-void furnitureitem_renderIcon(Item* item, Screen* screen, int x, int y){
-	render_screen(screen, x, y, furnitureitem_getSprite(item), furnitureitem_getColor(item), 0);
+/* Java: FurnitureItem.renderIcon(Screen, int, int) */
+PUBLIC void furnitureitem_render_icon(Item* this, Screen* screen, int x, int y) {
+    screen->render(screen, x, y, furnitureitem_get_sprite(this), furnitureitem_get_color(this), 0);
 }
 
 
-/* Draws icon plus the furniture's name in the inventory row. */
-void furnitureitem_renderInventory(Item* item, Screen* screen, int x, int y){
-	render_screen(screen, x, y, furnitureitem_getSprite(item), furnitureitem_getColor(item), 0);
-	font_draw(item->add.furniture.furniture->name, strlen(item->add.furniture.furniture->name), screen, x + 8, y, getColor4(-1, 555, 555, 555));
+/* Java: FurnitureItem.renderInventory(Screen, int, int). Draws the icon
+ * plus the furniture's own name in the inventory row. */
+PUBLIC void furnitureitem_render_inventory(Item* this, Screen* screen, int x, int y) {
+    screen->render(screen, x, y, furnitureitem_get_sprite(this), furnitureitem_get_color(this), 0);
+    font_draw(this->add.furniture.furniture->name, strlen(this->add.furniture.furniture->name), screen, x + 8, y, get_color4(-1, 555, 555, 555));
 }
 
 
-/* Drops the carried furniture centered on the tile when the tile
- * allows it; the item is then marked placed (ownership transferred
- * to the level). */
-char furnitureitem_interactOn(Item* item, TileID tile, Level* level, int xt, int yt, struct _Player* player, int attackDir) {
-	if (tile_mayPass(tile, level, xt, yt, (Entity *) item->add.furniture.furniture)) {
-		item->add.furniture.furniture->entity.x = xt * 16 + 8;
-		item->add.furniture.furniture->entity.y = yt * 16 + 8;
-		level_addEntity(level, (Entity *) item->add.furniture.furniture);
-		item->add.furniture.placed = 1;
-		item->add.furniture.furniture = 0;
-		return 1;
-	}
+/*
+ * Java: FurnitureItem.interactOn(Tile, Level, int, int, Player, int).
+ *
+ * Drops the carried furniture centred on the tile when that tile allows it;
+ * the item is then marked placed, because the level owns the entity from
+ * that point on.
+ */
+PUBLIC boolean furnitureitem_interact_on(Item* this, TileID tile, Level* level, int xt, int yt, struct Player* player, int attackDir) {
+    (void) player;
+    (void) attackDir;
 
-	return 0;
+    if (tiles[tile]->may_pass(tiles[tile], level, xt, yt, (Entity *) this->add.furniture.furniture)) {
+        this->add.furniture.furniture->entity.x = xt * 16 + 8;
+        this->add.furniture.furniture->entity.y = yt * 16 + 8;
+
+        level->add(level, (Entity *) this->add.furniture.furniture);
+
+        this->add.furniture.placed = true;
+        this->add.furniture.furniture = null;
+
+        return true;
+    }
+
+    return false;
 }
