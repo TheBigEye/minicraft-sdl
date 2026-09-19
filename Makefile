@@ -1,51 +1,110 @@
-### Compiler
-# (override for cross-compilation, e.g. CC=riscv64-linux-gnu-gcc)
+# =============================================================================
+#  Minicraft (SDL port) -- Makefile
+# =============================================================================
+#
+#  Builds the game against SDL 1.2, SDL 2 or SDL 3, on Windows (MinGW) and
+#  on Unix-like systems (Linux, macOS, BSDs). Plain GNU Make; the vsconfig
+#  target additionally needs GNU Make >= 4.0.
+#
+#  ---------------------------------------------------------------------------
+#  Targets
+#  ---------------------------------------------------------------------------
+#    all       (default) build the game into ./game (game.exe on Windows)
+#    run       build, then run the game
+#    clean     remove object files and the executable
+#    assets    re-pack assets/icons.png and assets/*.wav into C sources
+#    vsconfig  generate .vscode/ config for THIS machine (Make >= 4.0)
+#
+#  ---------------------------------------------------------------------------
+#  Options (make VAR=value, or export VAR=value in the environment)
+#  ---------------------------------------------------------------------------
+#    SDL=1|2|3  pin one SDL version. Unset (or SDL=auto) takes the newest
+#               installed, walking 3 -> 2 -> 1. A pinned version that is
+#               missing is a hard error - never a silent fallback.
+#    FB=1       prefer the framebuffer video driver (fbcon on SDL1,
+#               KMSDRM on SDL2/3). Linux only.
+#    NO_AUDIO=1 build without audio (for targets without sound support).
+#    DEBUG=1    -g -O0, LOG=4 by default; the build "vsconfig" debugs with.
+#    WERROR=0   relax the zero-warnings rule (exotic / very old toolchains).
+#    LOG=0..4   log level: 0 silent | 1 errors | 2 +warnings | 3 +info |
+#               4 +trace. Defaults: release 2, debug 4.
+#    CC=...     cross-compile, e.g. CC=riscv64-linux-gnu-gcc make SDL=1 FB=1
+#    PYTHON=... interpreter for the asset packers (default: python3)
+#
+#  ---------------------------------------------------------------------------
+#  Examples
+#  ---------------------------------------------------------------------------
+#    make                                newest SDL installed
+#    make SDL=3 FB=1                     SDL3 + framebuffer (Linux)
+#    make SDL=1 NO_AUDIO=1               SDL 1.2, silent build (embedded)
+#    make SDL=1 DEBUG=1                  SDL 1.2 debug build
+#    make vsconfig SDL=1                 VSCode config for the SDL 1.2 build
+#    CC=riscv64-linux-gnu-gcc make SDL=1 FB=1
+#    Windows (MSYS2):  make SDL=1 | make SDL=2 | make SDL=3
+#    macOS:            brew install sdl3 && make SDL=3
+#
+#  ---------------------------------------------------------------------------
+#  Asset pipeline
+#  ---------------------------------------------------------------------------
+#    scripts/spritesheet2c.py converts assets/icons.png into
+#    source/extern/icons_data.c/.h (same formula as the original Java
+#    SpriteSheet: blue_channel / 64).
+#    scripts/sound2c.py converts assets/*.wav into source/extern/sound_data.c
+#    (mono/16-bit/44100 Hz arrays, played by the mixer in source/sound/sound.c).
+#    The generated files are committed to the repo, so python3 is only needed
+#    when the assets change (fallback for cross-compilation environments).
+#
+#  ---------------------------------------------------------------------------
+#  Test hooks (source/, off by default)
+#  ---------------------------------------------------------------------------
+#    Seed CFLAGS through the environment to try the experimental defines:
+#      CFLAGS="-DLEVELGENTEST -DGODMODE" make
+#    Available defines: LEVELGENTEST, TEST_SHOWPORTALPOS, TEST_INVENTORY,
+#    GODMODE.
+#
+#  ---------------------------------------------------------------------------
+#  File layout (where to look for what)
+#  ---------------------------------------------------------------------------
+#    01  defaults & housekeeping
+#    02  SDL detection
+#    03  SDL flags per version
+#    04  version selection
+#    05  platform settings (Windows / Unix)
+#    06  build flags (optimization, warnings, WERROR, logging)
+#    07  sources & objects
+#    08  asset packing (python3, optional)
+#    09  build rules
+#    10  targets
+#    11  developer tooling (vsconfig)
+# =============================================================================
+
+
+# =============================================================================
+# 01. Defaults & housekeeping
+# =============================================================================
+# (CC is overridable for cross-compilation, e.g. CC=riscv64-linux-gnu-gcc)
 CC ?= gcc
-LD ?= ld
+PYTHON ?= python3
 
-# Directories
-SOURCE_DIR = source
-
-# Build options:
-#   make                   newest SDL installed, trying 3, then 2, then 1
-#   make SDL=3             SDL 3   (pinned: errors out if it is not there)
-#   make SDL=2             SDL 2   (pinned)
-#   make SDL=1             SDL 1.2 (pinned)
-#   make SDL=1 FB=1        SDL1 + prefer framebuffer (fbcon)   [Linux only]
-#   make FB=1              SDL2/3 + prefer framebuffer (KMSDRM)[Linux only]
-#   make NO_AUDIO=1        compile without audio (silent build, for
-#                          embedded targets without sound support)
-#   make DEBUG=1           debug build (-g -O0), used by the VSCode launcher
-#   make assets            force re-pack of assets (PNG/WAV -> C arrays,
-#                          needs python3; stdlib only, no pip packages)
-#   make vsconfig          generate .vscode/ config (c_cpp_properties, tasks,
-#                          launch) auto-detecting this machine's GCC toolchain
-#                          (needs GNU Make >= 4.0; honors SDL=/FB=/NO_AUDIO=)
-#
-# Windows (MinGW) examples:
-#   make                   SDL2
-#   make SDL=1             SDL 1.2
-#
-# Cross example (Linux):
-#   CC=riscv64-linux-gnu-gcc make SDL=1 FB=1
-#
-# Asset packing:
-#   scripts/spritesheet2c.py converts assets/icons.png into
-#   source/extern/icons_data.c/.h (same formula as the original Java
-#   SpriteSheet: blue_channel / 64).
-#   scripts/sound2c.py converts assets/*.wav into source/extern/sound_data.c
-#   (mono/16-bit/44100 Hz arrays, played by the mixer in source/sound/sound.c).
-#   The generated files are committed to the repo, so python3 is only needed
-#   when the assets change (fallback for cross-compilation environments).
-
-# Which SDL to build against, or "auto" to take the newest one installed
-# (3 -> 2 -> 1). See the detection block below.
+# Build options. ?= keeps the command line / environment in control.
 SDL ?= auto
 FB ?= 0
 NO_AUDIO ?= 0
-PYTHON ?= python3
+DEBUG ?= 0
+WERROR ?= 1
 
-# ---- Which SDL is installed? ---------------------------------------------
+SOURCE_DIR = source
+
+# "all" is the default goal even though other targets (assets, vsconfig)
+# appear earlier in this file.
+.DEFAULT_GOAL := all
+.PHONY: all run clean assets vsconfig
+.DELETE_ON_ERROR:
+
+
+# =============================================================================
+# 02. SDL detection
+# =============================================================================
 # A package counts as installed when pkg-config can describe it or, where
 # pkg-config is absent (a bare MinGW toolchain, for instance), when the
 # compiler finds its main header on its own search path.
@@ -62,6 +121,10 @@ ifeq ($(SDL1_FOUND),)
     SDL1_FOUND := $(shell printf '#include <SDL/SDL.h>\n' | $(CC) -E -x c - >/dev/null 2>&1 && echo yes)
 endif
 
+
+# =============================================================================
+# 03. SDL flags per version
+# =============================================================================
 # Compiler and linker flags per version. pkg-config is preferred; the
 # fallbacks keep a build working where pkg-config is missing.
 SDL3_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
@@ -69,7 +132,7 @@ SDL3_LIBS   := $(shell pkg-config --libs   sdl3 2>/dev/null || echo "-lSDL3")
 # The Windows build links with -static, which makes ld prefer SDL3's static
 # archive (libSDL3.a) over the import library. That archive still refers to
 # the libraries SDL3 was compiled against - libiconv above all - and only the
-# static closure lists them, so an ordinary `pkg-config --libs sdl3` leaves
+# static closure lists them, so an ordinary pkg-config libs line leaves
 # the link with undefined references to libiconv_open and friends.
 SDL3_LIBS_STATIC := $(shell pkg-config --libs --static sdl3 2>/dev/null || echo "-lSDL3 -liconv")
 SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null)
@@ -77,7 +140,10 @@ SDL2_LIBS   := $(shell pkg-config --libs   sdl2 2>/dev/null || echo "-lSDL2")
 SDL1_CFLAGS := $(shell sdl-config --cflags 2>/dev/null)
 SDL1_LIBS   := $(shell sdl-config --libs   2>/dev/null || echo "-lSDL")
 
-# ---- Pick the version ----------------------------------------------------
+
+# =============================================================================
+# 04. Version selection
+# =============================================================================
 # SDL=1|2|3 pins one version and never substitutes another, so a build can
 # not quietly come out against a library you did not ask for. Anything else
 # (SDL unset, SDL=auto, SDL=anything-else) walks 3 -> 2 -> 1.
@@ -135,21 +201,28 @@ ifeq ($(SDL_VER),)
     $(error no usable SDL found - install SDL3 (preferred), SDL2 or SDL 1.2 and try again)
 endif
 
-# -DLEVELGENTEST
-# -DTEST_SHOWPORTALPOS
-# -DTEST_INVENTORY
-# -DGODMODE
 
-# Platform-specific settings
+# =============================================================================
+# 05. Platform settings
+# =============================================================================
+# $(OS) is make's built-in: "Windows_NT" on Windows, the uname string
+# (Linux, Darwin, ...) everywhere else, so the Unix block covers Linux,
+# macOS and the BSDs with no extra detection.
 ifeq ($(OS),Windows_NT)
     # ===================== Windows (MinGW) =====================
-    OUTPUT  = game.exe
-    CFLAGS += -Wall -Wextra -O2 -static -static-libgcc
+    OUTPUT = game.exe
+
+    # Self-contained executable: the C runtime and SDL link in statically,
+    # so the .exe runs on a machine with nothing but Windows installed.
+    CFLAGS += \
+        -static \
+        -static-libgcc
 
     # Windows system libraries every SDL backend needs.
-    WIN_SYS_LIBS := -lkernel32 -luser32 -lgdi32 -lwinmm -limm32 \
-                    -lole32 -loleaut32 -lversion -luuid -ladvapi32 \
-                    -lsetupapi -lshell32
+    WIN_SYS_LIBS := \
+        -lkernel32 -luser32 -lgdi32 -lwinmm -limm32 \
+        -lole32 -loleaut32 -lversion -luuid -ladvapi32 \
+        -lsetupapi -lshell32
 
     ifeq ($(SDL_VER),1)
         # SDL 1.2 (SDL1) on Windows (MSYS2 MINGW32)
@@ -162,26 +235,33 @@ ifeq ($(OS),Windows_NT)
         #
         # You MUST add -ldxguid -lddraw right after -lSDL.
         CFLAGS += -DUSE_SDL1
-        LDFLAGS += -lmingw32 -lSDLmain -lSDL -ldxguid -lddraw -ldinput8 -lm \
-                   $(WIN_SYS_LIBS)
+        LDFLAGS += \
+            -lmingw32 -lSDLmain -lSDL -ldxguid -lddraw -ldinput8 -lm \
+            $(WIN_SYS_LIBS)
     else ifeq ($(SDL_VER),2)
         # SDL2
         CFLAGS += -DUSE_SDL2
-        LDFLAGS += -lmingw32 -lSDL2main -lSDL2 -lm -ldinput8 $(WIN_SYS_LIBS)
+        LDFLAGS += \
+            -lmingw32 -lSDL2main -lSDL2 -lm -ldinput8 \
+            $(WIN_SYS_LIBS)
     else
         # SDL3. There is no SDL3main: SDL 3 dropped SDLmain altogether, so a
         # plain main() links as usual.
         #
-        # SDL3_LIBS_STATIC rather than SDL3_LIBS: -static makes this a static
-        # link, so SDL3's own dependencies (libiconv) have to be named here
-        # and after -lSDL3. See the definition above.
+        # SDL3_LIBS_STATIC rather than the plain libs variable: -static makes
+        # this a static link, so SDL3's own dependencies (libiconv) have to
+        # be named here, after -lSDL3. See the definition above.
         CFLAGS += -DUSE_SDL3
-        LDFLAGS += -lmingw32 $(SDL3_LIBS_STATIC) -lm -ldinput8 $(WIN_SYS_LIBS)
+        LDFLAGS += \
+            -lmingw32 \
+            $(SDL3_LIBS_STATIC) \
+            -lm -ldinput8 \
+            $(WIN_SYS_LIBS)
     endif
 
 else
-    # ===================== Linux / Unix =====================
-    OUTPUT  = game
+    # ===================== Unix (Linux, macOS, BSDs) =====================
+    OUTPUT = game
 
     ifeq ($(SDL_VER),1)
         # SDL 1.2
@@ -197,33 +277,46 @@ else
         LDFLAGS += $(SDL3_LIBS) -lm
     endif
 
-    # Ensure one of the defines is always present (Linux)
-    ifneq ($(filter -DUSE_SDL%,$(CFLAGS)),)
-    else
+    # Defensive: SDL_VER is guaranteed to be 1/2/3 by section 04, so this
+    # can only fire if the platform block above is edited wrongly. A -DUSE_SDL
+    # define is mandatory in the sources; this keeps the build loud instead
+    # of silently compiling against nothing.
+    ifeq ($(filter -DUSE_SDL%,$(CFLAGS)),)
         CFLAGS += -DUSE_SDL3
     endif
 
-    # Framebuffer hints (Linux only)
+    # Framebuffer hint (Linux only; the KMSDRM / fbcon preference is gated
+    # behind it, see source/sdlcompat.h).
     ifeq ($(FB),1)
         CFLAGS += -DUSE_FB
     endif
 endif
 
-# Audio (embedded targets without sound can build with NO_AUDIO=1)
+# Embedded targets without sound.
 ifeq ($(NO_AUDIO),1)
     CFLAGS += -DNO_AUDIO
 endif
 
-# Common CFLAGS
-DEBUG ?= 0
+
+# =============================================================================
+# 06. Build flags
+# =============================================================================
+# Optimization and base warnings, shared by every platform. DEBUG=1 gives
+# the unoptimized build that "vsconfig" uses for F5 debugging.
 ifeq ($(DEBUG),1)
-    # Debug build (used by "make vsconfig" launch.json / F5 debugging)
-    CFLAGS += -Wall -Wextra -g -O0
+    CFLAGS += \
+        -Wall \
+        -Wextra \
+        -g \
+        -O0
 else
-    CFLAGS += -Wall -Wextra -O2
+    CFLAGS += \
+        -Wall \
+        -Wextra \
+        -O2
 endif
 
-# ---- Warnings -----------------------------------------------------------
+# ---- Warnings ------------------------------------------------------------
 # The "level 1" set: -Wall -Wextra plus the flags that cost no work and do
 # catch real bugs (undefined macros, VLAs, obvious NULL dereferences, jumps
 # that skip an initialization, dubious formats...).
@@ -231,7 +324,7 @@ endif
 # -Wno-alloc-size-larger-than is the one subtraction, and it is a
 # subtraction from GCC's OWN defaults, not from the set above: GCC turns
 # -Walloc-size-larger-than=PTRDIFF_MAX on by itself. Its value-range
-# analysis cannot prove that an `int * int` is positive even when the two
+# analysis cannot prove that an int * int is positive even when the two
 # operands were validated on the line before, so casting the product to
 # size_t looks to it like an astronomical allocation. Every dimension
 # product in the tree (level_create, screen_create, prevBuf, the three
@@ -241,19 +334,24 @@ endif
 # The dimensions are checked at the constructors anyway, which is what
 # actually stops a bogus allocation at run time; this flag only stops the
 # compiler from second-guessing a product it cannot bound.
-WARNINGS ?= -Wall -Wextra -Wundef -Wvla -Wnull-dereference \
-            -Wjump-misses-init -Wunused-macros -Wformat=2 \
-            -Wno-alloc-size-larger-than
+WARNINGS ?= \
+    -Wall -Wextra \
+    -Wundef \
+    -Wvla \
+    -Wnull-dereference \
+    -Wjump-misses-init \
+    -Wunused-macros \
+    -Wformat=2 \
+    -Wno-alloc-size-larger-than
 CFLAGS += $(WARNINGS)
 
 # The zero-warnings rule: -Werror on by default.
-# `make WERROR=0` turns it off for exotic toolchains / very old GCC.
-WERROR ?= 1
+# make WERROR=0 turns it off for exotic toolchains / very old GCC.
 ifeq ($(WERROR),1)
     CFLAGS += -Werror
 endif
 
-# ---- Logging (source/log.h) ---------------------------------------------
+# ---- Logging (source/log.h) -----------------------------------------------
 #   LOG=0 silent | 1 errors | 2 +warnings | 3 +info | 4 +trace
 #   Release starts at 2 and DEBUG=1 at 4 (everything visible).
 ifeq ($(DEBUG),1)
@@ -264,50 +362,34 @@ else
 endif
 CFLAGS += -DLOG_LEVEL=$(LOG)
 
-# C Source files
-SOURCES = $(wildcard 				  \
-	$(SOURCE_DIR)/crafting/*.c 	      \
-	$(SOURCE_DIR)/entity/*.c 	      \
-	$(SOURCE_DIR)/entity/particle/*.c \
-	$(SOURCE_DIR)/extern/*.c          \
-	$(SOURCE_DIR)/gfx/*.c 			  \
-	$(SOURCE_DIR)/item/*.c 			  \
-	$(SOURCE_DIR)/item/resource/*.c   \
-	$(SOURCE_DIR)/level/*.c 		  \
-	$(SOURCE_DIR)/level/levelgen/*.c  \
-	$(SOURCE_DIR)/level/tile/*.c      \
-	$(SOURCE_DIR)/screen/*.c          \
-	$(SOURCE_DIR)/sound/*.c           \
-	$(SOURCE_DIR)/utils/*.c           \
-	$(SOURCE_DIR)/*.c                 \
-)
 
-# C Header files
-HEADERS = $(wildcard                  \
-	$(SOURCE_DIR)/crafting/*.h        \
-	$(SOURCE_DIR)/entity/*.h          \
-	$(SOURCE_DIR)/entity/particle/*.h \
-	$(SOURCE_DIR)/extern/*.h          \
-	$(SOURCE_DIR)/gfx/*.h             \
-	$(SOURCE_DIR)/item/*.h            \
-	$(SOURCE_DIR)/item/resource/*.h   \
-	$(SOURCE_DIR)/level/*.h           \
-	$(SOURCE_DIR)/level/levelgen/*.h  \
-	$(SOURCE_DIR)/level/tile/*.h      \
-	$(SOURCE_DIR)/screen/*.h          \
-	$(SOURCE_DIR)/sound/*.h           \
-	$(SOURCE_DIR)/utils/*.h           \
-	$(SOURCE_DIR)/*.h                 \
+# =============================================================================
+# 07. Sources & objects
+# =============================================================================
+# Every .c / .h under source/ at depth 1-3 is part of the build, so adding
+# a directory needs no Makefile change.
+SOURCES = $(wildcard \
+    $(SOURCE_DIR)/*.c \
+    $(SOURCE_DIR)/*/*.c \
+    $(SOURCE_DIR)/*/*/*.c \
+)
+HEADERS = $(wildcard \
+    $(SOURCE_DIR)/*.h \
+    $(SOURCE_DIR)/*/*.h \
+    $(SOURCE_DIR)/*/*/*.h \
 )
 
 # Convert all .c files into .o files
 OBJECTS = $(SOURCES:.c=.o)
 
 
-# ===================== Asset packing (Python 3, stdlib only) =====================
-# (the rules below appear before "all:", so make sure "all" stays the default)
-.DEFAULT_GOAL := all
-
+# =============================================================================
+# 08. Asset packing (python3, stdlib only)
+# =============================================================================
+# The generated files are committed to the repo; these rules only run when
+# an asset is newer than its C source. On hosts without python3 (CI,
+# cross-compilation hosts, embedded toolchains) the committed files are
+# simply used, which is what the order-only prerequisite below arranges.
 GENERATED_DIR = $(SOURCE_DIR)/extern
 GEN_ICONS     = $(GENERATED_DIR)/icons_data.c $(GENERATED_DIR)/icons_data.h
 GEN_SOUNDS    = $(GENERATED_DIR)/sound_data.c
@@ -329,13 +411,37 @@ $(GEN_SOUNDS): $(wildcard assets/*.wav) scripts/sound2c.py $(SOURCE_DIR)/sound/s
 endif
 
 # Object files need the extern sources/headers to EXIST before compiling.
-# Order-only prerequisite: they are committed to the repo, so when python3 is
-# not available (cross-compilation hosts, CI, embedded toolchains) the build
-# simply uses the committed files.
+# Order-only prerequisite: timestamps are ignored, only presence matters.
 $(OBJECTS): | $(GEN_FILES)
 
+
+# =============================================================================
+# 09. Build rules
+# =============================================================================
+# Compile each .c file into a .o file
+%.o: %.c $(HEADERS)
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Link all object files to create the executable
+$(OUTPUT): $(OBJECTS)
+	@$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $@
+
+
+# =============================================================================
+# 10. Targets
+# =============================================================================
+# Default target: build the final executable
+all: $(OUTPUT)
+
+# Run the game
+run: $(OUTPUT)
+	@./$(OUTPUT)
+
+# Clean up build artifacts
+clean:
+	@rm -fv $(OBJECTS) $(OUTPUT)
+
 # Force re-pack of all assets
-.PHONY: assets
 assets:
 ifeq ($(HAVE_PYTHON),1)
 	@mkdir -p $(GENERATED_DIR)
@@ -348,25 +454,33 @@ else
 endif
 
 
-# ===================== VSCode config generation (make vsconfig) =====================
+# =============================================================================
+# 11. Developer tooling: VSCode config generation (make vsconfig)
+# =============================================================================
 # Generates .vscode/c_cpp_properties.json, .vscode/tasks.json and
 # .vscode/launch.json tailored to THIS machine:
-#   - detects the compiler from $(CC) (absolute path, target triple)
+#   - detects the compiler from CC (absolute path, target triple)
 #   - queries the compiler for its system include dirs (gcc -E -Wp,-v)
 #   - reflects the active build defines (SDL=, FB=, NO_AUDIO=, DEBUG=)
-# Works on Linux and Windows (MinGW/MSYS2). Requires GNU Make >= 4.0.
+# Works on Linux, macOS and Windows (MinGW/MSYS2). Requires GNU Make >= 4.0.
 #
 # Examples:
-#   make vsconfig                 config for the default build (SDL2)
+#   make vsconfig                 config for the default build
 #   make vsconfig SDL=1           config for the SDL 1.2 build
 #   CC=riscv64-linux-gnu-gcc make vsconfig   cross-toolchain config
 
 VSCODE_DIR = .vscode
 
+# make's own path with backslashes converted for JSON strings (Windows).
+# Uses the single-backslash form of the substitution: a doubled backslash
+# would DELETE the separators instead of converting them, breaking the
+# command on Windows.
+VSC_MAKE := $(subst \,/,$(MAKE))
+
 comma := ,
 vsc_empty :=
 vsc_sp := $(vsc_empty) $(vsc_empty)
-# $(call vsc_list,a b c)  ->  "a", "b", "c"     (strict JSON list content)
+# vsc_list, a b c  ->  "a", "b", "c"     (strict JSON list content)
 vsc_list = $(subst @,,$(subst @$(vsc_sp),$(comma)$(vsc_sp),$(strip $(foreach i,$(strip $1),"$(subst \,/,$i)"@))))
 
 # --- compiler detection -----------------------------------------------------
@@ -374,9 +488,9 @@ vsc_list = $(subst @,,$(subst @$(vsc_sp),$(comma)$(vsc_sp),$(strip $(foreach i,$
 # purpose. These assignments run at parse time, so an unguarded $(shell)
 # would execute on every make invocation (`make clean` included).
 # The redirects also depend on which shell make uses for $(shell): POSIX
-# sh syntax (`2>/dev/null`) would create a literal file named "nul" under
-# cmd.exe, and cmd syntax (`2>nul`) would create one under sh - so pick
-# per shell. (make picks sh.exe when it is in PATH, cmd.exe otherwise.)
+# sh syntax would create a literal file named "nul" under cmd.exe, and cmd
+# syntax would create one under sh - so pick per shell. (make picks sh.exe
+# when it is in PATH, cmd.exe otherwise.)
 ifneq ($(filter sh sh.exe bash bash.exe dash,$(notdir $(SHELL))),)
     VSC_POSIX_SHELL := 1
 else
@@ -397,7 +511,7 @@ ifeq ($(filter vsconfig,$(MAKECMDGOALS)),vsconfig)
     VSC_TRIPLE := $(shell $(CC) -dumpmachine)
     # System include dirs reported by the compiler itself. Empty input is
     # piped via stdin so no null-device file argument is needed on any
-    # platform (an argument like `nul`/`/dev/null` is shell-dependent).
+    # platform (an argument like nul or /dev/null is shell-dependent).
     VSC_SYSINC := $(shell echo | $(CC) -E -Wp,-v -xc - 2>&1 | sed -n 's/^ \{1,\}\(.*\)/\1/p')
 endif
 ifeq ($(VSC_CC),)
@@ -439,9 +553,9 @@ VSC_ALLINC := $${workspaceFolder}/source $(VSC_SDLINC) $(VSC_SYSINC)
 
 VSC_CONFNAME := Minicraft-$(VSC_OSNAME)-SDL$(SDL)$(if $(filter 1,$(FB)),-FB)$(if $(filter 1,$(NO_AUDIO)),-NOAUDIO)$(if $(filter 1,$(DEBUG)),-DEBUG)
 
-# $(VSCODE_DIR) is created at parse time by the guarded detection block
+# VSCODE_DIR is created at parse time by the guarded detection block
 # above (GNU Make expands a whole recipe before executing its first line,
-# so $(file > ...) could never rely on a mkdir recipe line).
+# so the file functions below could never rely on a mkdir recipe line).
 
 # --- JSON payloads ------------------------------------------------------------
 define VSCODE_CPROPS
@@ -472,7 +586,7 @@ define VSCODE_TASKS
         {
             "label": "build",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [],
             "group": { "kind": "build", "isDefault": true },
             "problemMatcher": [ "$$gcc" ],
@@ -481,7 +595,7 @@ define VSCODE_TASKS
         {
             "label": "build-debug",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "DEBUG=1" ],
             "group": "build",
             "problemMatcher": [ "$$gcc" ],
@@ -490,7 +604,7 @@ define VSCODE_TASKS
         {
             "label": "build-sdl3",
             "type": "shell",
-            "command": "$(subst \\,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "SDL=3" ],
             "group": "build",
             "detail": "SDL 3 build (pinned)"
@@ -498,7 +612,7 @@ define VSCODE_TASKS
         {
             "label": "build-sdl2",
             "type": "shell",
-            "command": "$(subst \\,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "SDL=2" ],
             "group": "build",
             "detail": "SDL 2 build (pinned)"
@@ -506,7 +620,7 @@ define VSCODE_TASKS
         {
             "label": "build-sdl1",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "SDL=1" ],
             "group": "build",
             "problemMatcher": [ "$$gcc" ],
@@ -515,7 +629,7 @@ define VSCODE_TASKS
         {
             "label": "build-fb",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "FB=1" ],
             "group": "build",
             "problemMatcher": [ "$$gcc" ],
@@ -524,7 +638,7 @@ define VSCODE_TASKS
         {
             "label": "build-no-audio",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "NO_AUDIO=1" ],
             "group": "build",
             "problemMatcher": [ "$$gcc" ],
@@ -533,7 +647,7 @@ define VSCODE_TASKS
         {
             "label": "run",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "run" ],
             "dependsOn": [ "build" ],
             "problemMatcher": [],
@@ -542,7 +656,7 @@ define VSCODE_TASKS
         {
             "label": "clean",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "clean" ],
             "problemMatcher": [],
             "detail": "Remove objects and binary"
@@ -550,7 +664,7 @@ define VSCODE_TASKS
         {
             "label": "assets",
             "type": "shell",
-            "command": "$(subst \,/,$(MAKE))",
+            "command": "$(VSC_MAKE)",
             "args": [ "assets" ],
             "problemMatcher": [],
             "detail": "Re-pack PNG/WAV assets into C arrays (needs python3)"
@@ -623,7 +737,6 @@ define VSCODE_SETTINGS
 }
 endef
 
-.PHONY: vsconfig
 vsconfig:
 ifneq ($(firstword $(sort 4.0 $(MAKE_VERSION))),4.0)
 	@echo "ERROR: 'make vsconfig' requires GNU Make >= 4.0 (found $(MAKE_VERSION))." && exit 1
@@ -637,27 +750,3 @@ endif
 	@echo "vsconfig: defines          = $(VSC_DEFINES)"
 	@echo "vsconfig: gdb              = $(VSC_GDB)"
 endif
-
-
-# Default target: build the final executable
-all: $(OUTPUT)
-
-
-# Link all object files to create the executable
-$(OUTPUT): $(OBJECTS)
-	@$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $@
-
-
-# Compile each .c file into a .o file
-%.o: %.c $(HEADERS)
-	@$(CC) $(CFLAGS) -c $< -o $@
-
-
-# Run the game
-run: $(OUTPUT)
-	@./$(OUTPUT)
-
-
-# Clean up build artifacts
-clean:
-	@rm -fv $(OBJECTS) $(OUTPUT)

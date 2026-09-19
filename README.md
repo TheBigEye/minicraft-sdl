@@ -19,6 +19,7 @@ The build needs **one** of SDL 1.2, SDL2 or SDL3. Which one is picked is describ
 |---|---|
 | Debian/Ubuntu | `build-essential`, `libsdl3-dev` (or `libsdl2-dev`, or `libsdl1.2-dev`). Note `libsdl3-dev` only exists from Ubuntu 25.10 onwards. |
 | Fedora | `gcc`, `make`, `SDL3-devel` |
+| macOS (Homebrew) | Xcode command line tools (Apple clang, `make`), then `brew install pkgconf sdl3`. Homebrew does not package SDL 1.2, so SDL3 is the supported flavor on macOS. |
 | Windows x64 (MSYS2 MINGW64) | `mingw-w64-x86_64-gcc`, `mingw-w64-x86_64-make`, `mingw-w64-x86_64-sdl3` (or `mingw-w64-x86_64-SDL2`, or `mingw-w64-x86_64-SDL`) |
 | Windows x86 (MSYS2 MINGW32) | `mingw-w64-i686-gcc`, `mingw-w64-i686-make`, `mingw-w64-i686-SDL2` (or `mingw-w64-i686-SDL`). MSYS2 has **no** 32-bit SDL3, so SDL3 on i686 Windows means building SDL3 from source. |
 | Embedded / cross | any GCC cross toolchain via `CC=...`; add `NO_AUDIO=1` / `FB=1` as needed |
@@ -33,6 +34,10 @@ make run      # build and launch
 ```
 
 On Windows (MSYS2 shell): `mingw32-make` (or `make`) produces `game.exe`.
+
+On macOS: `make CC=cc SDL=3` builds `game` with Apple clang. Use `CC=cc`
+because a bare `gcc` binary is not guaranteed to exist; SDL3 is selected on
+purpose because Homebrew has no SDL 1.2 package.
 
 ### Build options
 

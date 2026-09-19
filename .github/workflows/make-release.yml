@@ -3,7 +3,7 @@
 # Dispatch with a version like v1.0.0 (must match source/version.h).
 # The changelog is cumulative for the whole vX.Y.Z-devN series: it
 # spans every commit since the previous stable tag, so nothing is
-# duplicated or lost between the pre-releases. The 8 variants are
+# duplicated or lost between the pre-releases. The 13 variants are
 # rebuilt from the current HEAD and published as a normal GitHub
 # release tagged with the given version.
 name: Make release
@@ -275,6 +275,19 @@ jobs:
             backend: SDL1
             arch: i686
             ext: elf
+          # ---- macOS (Homebrew SDL3, app bundle) ----
+          # macOS has no apt; Homebrew provides pkg-config (pkgconf) and SDL3.
+          # Only SDL3 is tested here: Homebrew does not package SDL 1.2, and
+          # the three-version matrix is already covered on Linux and Windows.
+          # macos-latest is Apple Silicon (arm64), so arch is arm64.
+          - os: macos-latest
+            os_name: macOS
+            kind: brew
+            cc: cc
+            make_args: SDL=3
+            backend: SDL3
+            arch: arm64
+            ext: zip
     steps:
       - uses: actions/checkout@v4
 
@@ -355,7 +368,71 @@ jobs:
         shell: msys2 {0}
         run: make CC="${{ matrix.cc }}" ${{ matrix.make_args }} -j"$(nproc)"
 
+      # brew supplies pkg-config (as pkgconf) for the Makefile's detection
+      # and the SDL3 library itself; cc is the Apple clang on the runners
+      # (there is no gcc binary, so the matrix pins CC explicitly).
+      - name: Install dependencies (macOS)
+        if: matrix.kind == 'brew'
+        run: |
+          set -euo pipefail
+          brew install pkgconf sdl3
+
+      # -j takes sysctl, not nproc, on macOS. SDL=3 is pinned: if the brew
+      # install failed, the Makefile errors out instead of shipping a binary
+      # labelled SDL3 that was really built against another library.
+      - name: Build (macOS)
+        if: matrix.kind == 'brew'
+        run: make CC="${{ matrix.cc }}" ${{ matrix.make_args }} -j"$(sysctl -n hw.ncpu)"
+
+      # Wrap the bare Mach-O in a minimal .app bundle: Finder treats a
+      # bundle as an application, and NSPrincipalClass makes the process a
+      # foreground GUI app so the SDL window receives focus. The executable
+      # already carries the ad-hoc signature the linker adds (required for
+      # any arm64 binary); the bundle itself is unsigned on purpose, since
+      # the runners have no signing identity. Users open it via
+      # right-click > Open, or clear the quarantine flag with
+      # xattr -d com.apple.quarantine Minicraft.app.
+      - name: Package app bundle (macOS)
+        if: matrix.kind == 'brew'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Minicraft.app/Contents/MacOS
+          cp game Minicraft.app/Contents/MacOS/game
+          cat > Minicraft.app/Contents/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key>
+              <string>Minicraft</string>
+              <key>CFBundleDisplayName</key>
+              <string>Minicraft</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.thebigeye.minicraft</string>
+              <key>CFBundleExecutable</key>
+              <string>game</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${{ needs.prepare.outputs.file_version }}</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.14</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSPrincipalClass</key>
+              <string>NSApplication</string>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint Minicraft.app/Contents/Info.plist
+          zip -r -X "minicraft_${{ needs.prepare.outputs.file_version }}_${{ matrix.backend }}-${{ matrix.arch }}.${{ matrix.ext }}" Minicraft.app
+
+      # Skipped on macOS: that job ships a .app bundle, not a renamed binary.
       - name: Rename binary
+        if: matrix.kind != 'brew'
         shell: bash
         run: |
           src="game"
