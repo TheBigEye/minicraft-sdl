@@ -13,7 +13,7 @@
 
 #define MAJOR 1
 #define MINOR 1
-#define PATCH 0
+#define PATCH 1
 
 /* VERSION is built from MAJOR/MINOR/PATCH via stringification, e.g.
  * "1" "." "0" "." "0" concatenates into "1.0.0". */
